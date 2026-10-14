@@ -101,7 +101,12 @@ def host_detail(request, pk):
 
         fact = request.POST.get("fact", "").strip()
         if fact:
-            History.objects.create(host=host, fact=fact)
+            default_person = host.users.first()
+            History.objects.create(
+                host=host,
+                person=default_person,
+                fact=fact,
+            )
         return redirect("inventory:host_detail", pk=host.pk)
 
     hardware = HardwareInfo.objects.filter(host=host).first()

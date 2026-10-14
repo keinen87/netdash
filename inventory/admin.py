@@ -248,9 +248,19 @@ class SIMAdmin(admin.ModelAdmin):
     list_display = ("full_number", "short_number", "icc", "person", "host")
     search_fields = ("full_number", "short_number", "icc")
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.person and obj.host:
+            obj.host.users.add(obj.person)
+
 
 @admin.register(History)
 class HistoryAdmin(admin.ModelAdmin):
     list_display = ("created_at", "host", "person", "fact")
     list_filter = ("host", "person")
     date_hierarchy = "created_at"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.person and obj.host:
+            obj.host.users.add(obj.person)
