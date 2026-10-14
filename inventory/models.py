@@ -145,6 +145,7 @@ class Account(models.Model):
     KIND_CLOUD = "cloud"
     KIND_DOMAIN = "domain"
     KIND_EMAIL = "email"
+    KIND_TRASSIR = "trassir"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -153,6 +154,7 @@ class Account(models.Model):
         (KIND_CLOUD, "Облако"),
         (KIND_DOMAIN, "Домен"),
         (KIND_EMAIL, "Email"),
+        (KIND_TRASSIR, "Видеосервер Trassir"),
         (KIND_OTHER, "Другое"),
     ]
 
