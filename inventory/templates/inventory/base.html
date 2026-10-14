@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}NetDash{% endblock %}</title>
+    <style>
+        /* ---------- Общие стили ---------- */
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            margin: 2rem auto;
+            max-width: 1100px;
+            padding: 0 1rem;
+            color: #222;
+            font-size: 15px;
+        }
+        a { color: #2d6cdf; }
+        h1 { margin: 0; }
+        h2 {
+            margin-top: 2rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+        }
+
+        /* ---------- Верхняя навигация ---------- */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 15px;
+        }
+        .topbar .brand {
+            font-size: 22px;
+            font-weight: 600;
+            color: #222;
+            text-decoration: none;
+        }
+        .topbar .right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .topbar .user {
+            color: #666;
+        }
+        .topbar .user strong { color: #222; }
+        .logout-btn {
+            border: none;
+            background: none;
+            color: #2d6cdf;
+            cursor: pointer;
+            padding: 0;
+            font-size: inherit;
+            font-family: inherit;
+        }
+        .logout-btn:hover { text-decoration: underline; }
+
+        /* ---------- Общие элементы ---------- */
+        .card {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .card h2 {
+            margin: 0 0 0.75rem;
+            font-size: 16px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+            padding: 0;
+        }
+        .card h2 .count {
+            color: #999;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            font-size: 13px;
+        }
+
+        /* ---------- Таблицы ---------- */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 16px;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+        th {
+            color: #777;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        tr:last-child td { border-bottom: none; }
+
+        /* ---------- Вспомогательные классы ---------- */
+        .empty { color: #999; font-style: italic; font-size: 15px; }
+        .mono { font-family: monospace; font-size: 15px; }
+        .badge {
+            display: inline-block;
+            background: #eef2f9;
+            color: #2d6cdf;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 14px;
+            margin-right: 4px;
+        }
+        .chip {
+            display: inline-block;
+            background: #f4f4f4;
+            color: #555;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 13px;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a class="brand" href="{% url 'inventory:dashboard' %}">NetDash</a>
+        <div class="right">
+            <a href="/admin/">Админка</a>
+            {% if user.is_authenticated %}
+                <span class="user">· <strong>{{ user.username }}</strong></span>
+                <form method="post" action="{% url 'admin:logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn">Выйти</button>
+                </form>
+            {% else %}
+                <a href="{% url 'admin:login' %}?next={{ request.path }}">Войти</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% block content %}{% endblock %}
+</body>
+</html>

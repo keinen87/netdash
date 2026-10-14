@@ -1,0 +1,191 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}NetDash — Хосты{% endblock %}
+
+{% block extra_css %}
+    form.search {
+        display: flex;
+        gap: 8px;
+        margin: 1.5rem 0;
+    }
+    form.search input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 16px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+    }
+    form.search button {
+        padding: 10px 18px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        background: #2d6cdf;
+        color: white;
+        cursor: pointer;
+    }
+    form.search button:hover { background: #1e52b5; }
+    form.search a.clear {
+        align-self: center;
+        color: #888;
+        text-decoration: none;
+        font-size: 15px;
+    }
+
+    /* Строки внутри ячеек с несколькими пользователями */
+    .user-line {
+        margin-bottom: 4px;
+        line-height: 1.35;
+        font-size: 16px;
+    }
+    .user-line:last-child { margin-bottom: 0; }
+
+    /* Кликабельные строки таблицы */
+    tr.row-link { cursor: pointer; }
+    tr.row-link:hover td { background: #f5f8ff; }
+    tr.row-link:active td { background: #eaf1ff; }
+{% endblock %}
+
+{% block content %}
+    <form class="search" method="get" action="">
+        <input
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Поиск по хостам, людям, аккаунтам, SIM, истории..."
+            autofocus
+        >
+        <button type="submit">Найти</button>
+        {% if query %}
+            <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
+        {% endif %}
+    </form>
+
+    {% if query %}
+        <p>Результаты поиска по запросу: <strong>«{{ query }}»</strong></p>
+    {% endif %}
+
+    {# ---------- ХОСТЫ ---------- #}
+    <h2>Хосты {% if query %}(найдено: {{ hosts|length }}){% else %}({{ hosts|length }}){% endif %}</h2>
+    {% if hosts %}
+        <table>
+            <tr>
+                <th>ФИО</th>
+                <th>Доменное имя</th>
+                <th>IP-адрес</th>
+                <th>Телефон</th>
+            </tr>
+            {% for h in hosts %}
+            <tr class="row-link" data-href="{% url 'inventory:host_detail' h.id %}">
+                <td>
+                    {% for u in h.users.all %}
+                        <div class="user-line">{{ u.full_name }}</div>
+                    {% empty %}
+                        —
+                    {% endfor %}
+                </td>
+                <td>{{ h.domain_name|default:"—" }}</td>
+                <td class="mono">{{ h.ip_address }}</td>
+                <td>
+                    {% for u in h.users.all %}
+                        <div class="user-line mono">{{ u.phone_work|default:"—" }}</div>
+                    {% empty %}
+                        —
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p class="empty">Пока ничего нет.</p>
+    {% endif %}
+
+    {% if query %}
+        {# ---------- ЛЮДИ ---------- #}
+        <h2>Пользователи (найдено: {{ persons|length }})</h2>
+        {% if persons %}
+            <table>
+                <tr><th>ФИО</th><th>Должность</th><th>Телефон</th><th>Описание</th></tr>
+                {% for p in persons %}
+                <tr class="row-link" data-href="/admin/inventory/person/{{ p.id }}/change/">
+                    <td>{{ p.full_name }}</td>
+                    <td>{{ p.position|default:"—" }}</td>
+                    <td class="mono">{{ p.phone_work|default:"—" }}</td>
+                    <td>{{ p.description|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="empty">Не найдено.</p>
+        {% endif %}
+
+        {# ---------- УЧЁТКИ ---------- #}
+        <h2>Учётные записи (найдено: {{ accounts|length }})</h2>
+        {% if accounts %}
+            <table>
+                <tr><th>Вид</th><th>Логин</th><th>Пароль</th><th>Пользователь</th><th>Хост</th></tr>
+                {% for a in accounts %}
+                <tr class="row-link" data-href="/admin/inventory/account/{{ a.id }}/change/">
+                    <td>{{ a.get_kind_display }}</td>
+                    <td>{{ a.login }}</td>
+                    <td class="mono">{{ a.password }}</td>
+                    <td>{{ a.person.full_name }}</td>
+                    <td>{{ a.host|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="empty">Не найдено.</p>
+        {% endif %}
+
+        {# ---------- SIM ---------- #}
+        <h2>SIM-карты (найдено: {{ sims|length }})</h2>
+        {% if sims %}
+            <table>
+                <tr><th>Абонентский</th><th>Короткий</th><th>ICC</th><th>Пользователь</th><th>Хост</th></tr>
+                {% for s in sims %}
+                <tr class="row-link" data-href="/admin/inventory/sim/{{ s.id }}/change/">
+                    <td>{{ s.full_number }}</td>
+                    <td class="mono">{{ s.short_number|default:"—" }}</td>
+                    <td class="mono">{{ s.icc }}</td>
+                    <td>{{ s.person|default:"—" }}</td>
+                    <td>{{ s.host|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="empty">Не найдено.</p>
+        {% endif %}
+
+        {# ---------- ИСТОРИЯ ---------- #}
+        <h2>История (найдено: {{ history|length }})</h2>
+        {% if history %}
+            <table>
+                <tr><th>Дата</th><th>Хост</th><th>Пользователь</th><th>Факт</th></tr>
+                {% for h in history %}
+                <tr class="row-link" data-href="/admin/inventory/history/{{ h.id }}/change/">
+                    <td>{{ h.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ h.host|default:"—" }}</td>
+                    <td>{{ h.person|default:"—" }}</td>
+                    <td>{{ h.fact }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="empty">Не найдено.</p>
+        {% endif %}
+    {% endif %}
+
+    <script>
+        document.querySelectorAll("tr.row-link").forEach(function (row) {
+            row.addEventListener("click", function (event) {
+                // не переходим, если кликнули по ссылке/кнопке/полю или выделили текст
+                if (event.target.closest("a, button, input, textarea, select")) return;
+                if (window.getSelection().toString().length > 0) return;
+
+                var href = row.dataset.href;
+                if (href) window.location.href = href;
+            });
+        });
+    </script>
+{% endblock %}

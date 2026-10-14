@@ -1,0 +1,291 @@
+{% extends "inventory/base.html" %}
+
+{% block title %}
+    {% with u=users|first %}
+        {% if u %}{{ u.full_name }}{% else %}{{ host.domain_name|default:host.ip_address }}{% endif %}
+    {% endwith %}
+    — NetDash
+{% endblock %}
+
+{% block extra_css %}
+    .back { font-size: 15px; margin-bottom: 1rem; }
+
+    /* Двухколоночная раскладка */
+    .detail-layout {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .detail-main {
+        flex: 1 1 620px;
+        min-width: 0; /* чтобы длинные таблицы не растягивали flex-элемент */
+    }
+    .detail-side {
+        flex: 0 1 340px;
+        min-width: 280px;
+    }
+
+    /* На узких экранах — правая колонка уходит вниз */
+    @media (max-width: 900px) {
+        .detail-layout { flex-direction: column; }
+        .detail-main, .detail-side { flex: 1 1 auto; width: 100%; }
+    }
+
+    .user-headline {
+        margin: 0 0 12px;
+        font-size: 26px;
+        font-weight: 600;
+        color: #222;
+        line-height: 1.2;
+    }
+
+    dl.info {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px 12px;
+        font-size: 15px;
+    }
+    dl.info dt { color: #777; }
+    dl.info dd { margin: 0; }
+
+    .user-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #eee;
+    }
+    .user-item {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 15px;
+    }
+    .user-item .name { font-weight: 500; }
+    .user-item .position { color: #777; font-size: 14px; }
+    .user-item .phone { color: #555; font-family: monospace; font-size: 14px; }
+
+    form.add-history {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 0.5rem;
+    }
+    form.add-history input[type="text"] {
+        padding: 8px 10px;
+        font-size: 15px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+    }
+    form.add-history button {
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        background: #2d6cdf;
+        color: white;
+        cursor: pointer;
+        align-self: flex-start;
+    }
+    form.add-history button:hover { background: #1e52b5; }
+
+    ul.history {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    ul.history li {
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 15px;
+    }
+    ul.history li:last-child { border-bottom: none; }
+    ul.history .when {
+        color: #999;
+        font-size: 13px;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    /* Таблицы в правой колонке не должны вылезать за границы */
+    .detail-side table { font-size: 14px; }
+    .detail-side th, .detail-side td { padding: 6px 6px; }
+{% endblock %}
+
+{% block content %}
+    <p class="back"><a href="{% url 'inventory:dashboard' %}">← На главную</a></p>
+
+    <div class="detail-layout">
+
+        {# ================= ЛЕВАЯ КОЛОНКА ================= #}
+        <div class="detail-main">
+
+            {# ---------- 1. ПОЛЬЗОВАТЕЛИ ---------- #}
+            <div class="card">
+                <h2>Пользователи <span class="count">({{ users|length }})</span></h2>
+
+                {% with u=users|first %}
+                    <div class="user-headline">
+                        {% if u %}
+                            {{ u.full_name }}
+                        {% else %}
+                            {{ host.domain_name|default:host.ip_address }}
+                        {% endif %}
+                    </div>
+
+                    <dl class="info">
+                        <dt>Вид</dt><dd>{{ host.get_kind_display }}</dd>
+                        <dt>Телефон</dt><dd class="mono">{{ u.phone_work|default:"—" }}</dd>
+                        <dt>Должность</dt><dd>{{ u.position|default:"—" }}</dd>
+                    </dl>
+
+                    {% if users|length > 1 %}
+                        <div class="user-list">
+                            {% for u in users %}
+                                <div class="user-item">
+                                    <span class="name">{{ u.full_name }}</span>
+                                    {% if u.position %}<span class="position">· {{ u.position }}</span>{% endif %}
+                                    {% if u.phone_work %}<span class="phone">{{ u.phone_work }}</span>{% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% elif not u %}
+                        <p class="empty" style="margin-top: 12px;">Не привязан ни один пользователь.</p>
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            {# ---------- 2. УЧЁТНЫЕ ЗАПИСИ ---------- #}
+            <div class="card">
+                <h2>Учётные записи <span class="count">({{ accounts|length }})</span></h2>
+                {% if accounts %}
+                    <table>
+                        <tr><th>Вид</th><th>Логин</th><th>Пароль</th><th>Пользователь</th><th>Комментарий</th></tr>
+                        {% for a in accounts %}
+                        <tr>
+                            <td>{{ a.get_kind_display }}</td>
+                            <td>{{ a.login }}</td>
+                            <td class="mono">{{ a.password }}</td>
+                            <td>{{ a.person.full_name }}</td>
+                            <td>{{ a.comment|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                {% else %}
+                    <p class="empty">Учётных записей нет.</p>
+                {% endif %}
+            </div>
+
+            {# ---------- 3. ИНФОРМАЦИЯ О ХОСТЕ ---------- #}
+            <div class="card">
+                <h2>Информация о хосте</h2>
+                <dl class="info">
+                    <dt>Вид</dt><dd>{{ host.get_kind_display }}</dd>
+                    <dt>IP-адрес</dt><dd class="mono">{{ host.ip_address }}</dd>
+                    <dt>Доменное имя</dt><dd>{{ host.domain_name|default:"—" }}</dd>
+                    <dt>MAC-адрес</dt><dd class="mono">{{ host.mac_address|default:"—" }}</dd>
+                    <dt>Описание</dt><dd>{{ host.description|default:"—"|linebreaksbr }}</dd>
+                    <dt>Комментарий</dt><dd>{{ host.comment|default:"—"|linebreaksbr }}</dd>
+                </dl>
+            </div>
+
+            {# ---------- 4. АППАРАТНАЯ ЧАСТЬ ---------- #}
+            <div class="card">
+                <h2>Аппаратная часть</h2>
+                {% if hardware %}
+                    <dl class="info">
+                        <dt>Производитель</dt><dd>{{ hardware.manufacturer|default:"—" }}</dd>
+                        <dt>Процессор</dt><dd>{{ hardware.cpu|default:"—" }}</dd>
+                        <dt>ОЗУ</dt><dd>{{ hardware.ram|default:"—" }}</dd>
+                        <dt>Материнская плата</dt><dd>{{ hardware.motherboard|default:"—" }}</dd>
+                        <dt>Тип накопителя</dt><dd>{{ hardware.get_storage_type_display|default:"—" }}</dd>
+                        <dt>Ёмкость накопителя</dt><dd>{{ hardware.storage_capacity|default:"—" }}</dd>
+                        <dt>Комментарий</dt><dd>{{ hardware.comment|default:"—"|linebreaksbr }}</dd>
+                    </dl>
+                {% else %}
+                    <p class="empty">Аппаратная часть не заполнена.</p>
+                {% endif %}
+            </div>
+
+            {# ---------- 5. ОС И ПО ---------- #}
+            <div class="card">
+                <h2>ОС и ПО <span class="count">({{ softwares|length }})</span></h2>
+                {% if softwares %}
+                    <table>
+                        <tr><th>Название</th><th>Версия</th><th>Комментарий</th></tr>
+                        {% for s in softwares %}
+                        <tr>
+                            <td>{{ s.name }}</td>
+                            <td class="mono">{{ s.version|default:"—" }}</td>
+                            <td>{{ s.comment|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                {% else %}
+                    <p class="empty">ПО не указано.</p>
+                {% endif %}
+            </div>
+
+            {# ---------- 6. SIM-КАРТЫ ---------- #}
+            <div class="card">
+                <h2>SIM-карты <span class="count">({{ sims|length }})</span></h2>
+                {% if sims %}
+                    <table>
+                        <tr><th>Абонентский</th><th>Короткий</th><th>ICC</th><th>Пользователь</th><th>Комментарий</th></tr>
+                        {% for s in sims %}
+                        <tr>
+                            <td class="mono">{{ s.full_number }}</td>
+                            <td class="mono">{{ s.short_number|default:"—" }}</td>
+                            <td class="mono">{{ s.icc }}</td>
+                            <td>{{ s.person|default:"—" }}</td>
+                            <td>{{ s.comment|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                {% else %}
+                    <p class="empty">SIM-карт нет.</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+        {# ================= ПРАВАЯ КОЛОНКА — ИСТОРИЯ ================= #}
+        <aside class="detail-side">
+            <div class="card">
+                <h2>История <span class="count">({{ history|length }})</span></h2>
+
+                {% if can_edit %}
+                    <form class="add-history" method="post" action="">
+                        {% csrf_token %}
+                        <input type="text" name="fact" placeholder="Записать факт об этом хосте..." required>
+                        <button type="submit">Добавить</button>
+                    </form>
+                {% else %}
+                    <p class="empty">
+                        Добавлять записи в историю может только администратор.
+                        <a href="{% url 'admin:login' %}?next={{ request.path }}">Войти</a>
+                    </p>
+                {% endif %}
+
+                <ul class="history" style="margin-top: 1rem;">
+                    {% for h in history %}
+                    <li>
+                        <span class="when">
+                            {{ h.created_at|date:"d.m.Y H:i" }}
+                            {% if h.author %} · {{ h.author.username }}{% endif %}
+                        </span>
+                        {{ h.fact|linebreaksbr }}
+                    </li>
+                    {% empty %}
+                    <li class="empty">Записей пока нет.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </aside>
+
+    </div>
+{% endblock %}
