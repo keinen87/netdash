@@ -30,52 +30,105 @@ def dashboard(request):
     softwares = Software.objects.none()
 
     if query:
+        # ---------- ХОСТЫ ----------
+        # Ищем во всех собственных полях, а также во всех связанных моделях:
+        # HardwareInfo (OneToOne), Account/SIM/History (FK),
+        # Person/Software (M2M).
         hosts = hosts.filter(
+            # Собственные поля хоста
             Q(description__icontains=query)
+            | Q(kind__icontains=query)
+            | Q(domain_name__icontains=query)
             | Q(ip_address__icontains=query)
             | Q(mac_address__icontains=query)
-            | Q(domain_name__icontains=query)
             | Q(comment__icontains=query)
+            # M2M: пользователи
             | Q(users__full_name__icontains=query)
+            | Q(users__position__icontains=query)
+            | Q(users__phone_work__icontains=query)
+            | Q(users__description__icontains=query)
+            | Q(users__comment__icontains=query)
+            # M2M: ПО
             | Q(softwares__name__icontains=query)
+            | Q(softwares__version__icontains=query)
+            | Q(softwares__comment__icontains=query)
+            # OneToOne: аппаратная часть
             | Q(hardware__manufacturer__icontains=query)
             | Q(hardware__cpu__icontains=query)
             | Q(hardware__ram__icontains=query)
             | Q(hardware__motherboard__icontains=query)
             | Q(hardware__storage_type__icontains=query)
             | Q(hardware__storage_capacity__icontains=query)
+            | Q(hardware__comment__icontains=query)
+            # FK: учётные записи
+            | Q(accounts__login__icontains=query)
+            | Q(accounts__kind__icontains=query)
+            | Q(accounts__comment__icontains=query)
+            | Q(accounts__person__full_name__icontains=query)
+            # FK: SIM-карты
+            | Q(sims__full_number__icontains=query)
+            | Q(sims__short_number__icontains=query)
+            | Q(sims__icc__icontains=query)
+            | Q(sims__comment__icontains=query)
+            | Q(sims__person__full_name__icontains=query)
+            # FK: история
+            | Q(history__fact__icontains=query)
         ).distinct()
 
+        # ---------- ПОЛЬЗОВАТЕЛИ ----------
         persons = Person.objects.filter(
             Q(full_name__icontains=query)
             | Q(position__icontains=query)
             | Q(phone_work__icontains=query)
             | Q(description__icontains=query)
             | Q(comment__icontains=query)
+            # ищем и по связанным хостам, учёткам, SIM
+            | Q(hosts__domain_name__icontains=query)
+            | Q(hosts__ip_address__icontains=query)
+            | Q(accounts__login__icontains=query)
+            | Q(accounts__comment__icontains=query)
+            | Q(sims__full_number__icontains=query)
+            | Q(sims__icc__icontains=query)
         ).distinct()
 
+        # ---------- УЧЁТНЫЕ ЗАПИСИ ----------
+        # Пароль исключён намеренно — см. комментарий выше.
         accounts = Account.objects.filter(
             Q(login__icontains=query)
             | Q(kind__icontains=query)
             | Q(comment__icontains=query)
             | Q(person__full_name__icontains=query)
+            | Q(person__position__icontains=query)
+            | Q(host__domain_name__icontains=query)
+            | Q(host__ip_address__icontains=query)
         ).distinct()
 
+        # ---------- SIM-КАРТЫ ----------
         sims = SIM.objects.filter(
             Q(full_number__icontains=query)
             | Q(short_number__icontains=query)
             | Q(icc__icontains=query)
             | Q(comment__icontains=query)
+            | Q(person__full_name__icontains=query)
+            | Q(host__domain_name__icontains=query)
+            | Q(host__ip_address__icontains=query)
         ).distinct()
 
+        # ---------- ИСТОРИЯ ----------
         history = History.objects.filter(
             Q(fact__icontains=query)
+            | Q(host__domain_name__icontains=query)
+            | Q(host__ip_address__icontains=query)
+            | Q(person__full_name__icontains=query)
         ).distinct()
 
+        # ---------- ПО ----------
         softwares = Software.objects.filter(
             Q(name__icontains=query)
             | Q(version__icontains=query)
             | Q(comment__icontains=query)
+            | Q(hosts__domain_name__icontains=query)
+            | Q(hosts__ip_address__icontains=query)
         ).distinct()
 
     context = {
@@ -158,11 +211,9 @@ def host_ping(request, pk):
     except Exception as exc:
         return JsonResponse({"ok": False, "error": f"Ошибка: {exc}"})
 
-    # Захватываем как байты — декодируем вручную под правильную кодировку.
     raw = (result.stdout or b"") + (result.stderr or b"")
 
     if system == "windows":
-        # Консоль русской Windows печатает в CP866; изредка — cp1251.
         candidates = ("cp866", "cp1251", "utf-8")
     else:
         candidates = ("utf-8",)
