@@ -1,6 +1,27 @@
-/venv
+# Виртуальное окружение
+venv/
+/venv/
+env/
+/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+*.sqlite3
+db.sqlite3
+/media/
+/staticfiles/
+
+# Офисные и временные
 *.docx
 *.tmp
-*.sqlite3
-/__pycache__
-*.pyc
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
