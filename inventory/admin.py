@@ -2,7 +2,6 @@ from django import forms
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import reverse
 
 from .models import (
     Account,
@@ -102,7 +101,13 @@ class PersonAdmin(admin.ModelAdmin):
 
 @admin.register(Host)
 class HostAdmin(admin.ModelAdmin):
-    list_display = ("domain_name", "kind", "ip_address", "mac_address")
+    list_display = (
+        "domain_name",
+        "kind",
+        "ip_address",
+        "mac_address",
+        "users_list",
+    )
     list_display_links = ("domain_name",)
     list_filter = ("kind",)
     search_fields = (
@@ -112,6 +117,7 @@ class HostAdmin(admin.ModelAdmin):
         "domain_name",
         "hardware__manufacturer",
         "hardware__cpu",
+        "users__full_name",
     )
     filter_horizontal = ("users", "softwares")
     inlines = [
@@ -121,6 +127,18 @@ class HostAdmin(admin.ModelAdmin):
         HistoryInlineForHost,
     ]
     actions = ["copy_hardware_from"]
+
+    def get_queryset(self, request):
+        """Подтягиваем связанных пользователей одним запросом."""
+        qs = super().get_queryset(request)
+        return qs.prefetch_related("users")
+
+    @admin.display(description="Пользователи")
+    def users_list(self, obj):
+        names = [u.full_name for u in obj.users.all()]
+        if not names:
+            return "—"
+        return ", ".join(names)
 
     @admin.action(description="Скопировать аппаратную часть с другого хоста")
     def copy_hardware_from(self, request, queryset):
