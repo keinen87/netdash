@@ -69,7 +69,6 @@
     .copy-btn:hover { background: #eaf1ff; border-color: #b9cdf5; }
     .copy-btn:active { background: #dbe8ff; }
 
-    /* Иконка «буфер обмена» */
     .copy-btn::before {
         content: "";
         display: inline-block;
@@ -79,8 +78,6 @@
         -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
         mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
     }
-
-    /* Успешно скопировано — зелёная галочка */
     .copy-btn.copied {
         background: #d4f4dd;
         border-color: #7bc893;
@@ -90,8 +87,6 @@
         -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
         mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
     }
-
-    /* Ошибка копирования — красный крестик */
     .copy-btn.copy-error {
         background: #fbe1e0;
         border-color: #e3a2a0;
@@ -256,6 +251,8 @@
                         <dt>Вид</dt><dd>{{ host.get_kind_display }}</dd>
                         <dt>Телефон</dt><dd class="mono">{{ u.phone_work|default:"—" }}</dd>
                         <dt>Должность</dt><dd>{{ u.position|default:"—" }}</dd>
+                        <dt>Описание</dt><dd>{{ u.description|default:"—"|linebreaksbr }}</dd>
+                        <dt>Комментарий</dt><dd>{{ u.comment|default:"—"|linebreaksbr }}</dd>
                     </dl>
 
                     {% if users|length > 1 %}
