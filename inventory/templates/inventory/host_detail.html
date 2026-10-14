@@ -1,5 +1,7 @@
 {% extends "inventory/base.html" %}
 
+{% block body_max_width %}1600px{% endblock %}
+
 {% block title %}
     {% with u=users|first %}
         {% if u %}{{ u.full_name }}{% else %}{{ host.domain_name|default:host.ip_address }}{% endif %}
@@ -10,26 +12,22 @@
 {% block extra_css %}
     .back { font-size: 15px; margin-bottom: 1rem; }
 
-    /* Двухколоночная раскладка */
+    /* ---------- Трёхколоночная сетка ---------- */
     .detail-layout {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(300px, 1.1fr) minmax(0, 2.3fr) minmax(260px, 1fr);
         gap: 1.25rem;
-        align-items: flex-start;
-        flex-wrap: wrap;
+        align-items: start;
     }
-    .detail-main {
-        flex: 1 1 620px;
-        min-width: 0; /* чтобы длинные таблицы не растягивали flex-элемент */
+    @media (max-width: 1150px) {
+        .detail-layout {
+            grid-template-columns: minmax(300px, 1.1fr) minmax(0, 2.3fr);
+        }
+        .detail-side { grid-column: 1 / -1; }
     }
-    .detail-side {
-        flex: 0 1 340px;
-        min-width: 280px;
-    }
-
-    /* На узких экранах — правая колонка уходит вниз */
-    @media (max-width: 900px) {
-        .detail-layout { flex-direction: column; }
-        .detail-main, .detail-side { flex: 1 1 auto; width: 100%; }
+    @media (max-width: 800px) {
+        .detail-layout { grid-template-columns: minmax(0, 1fr); }
+        .detail-left, .detail-main, .detail-side { grid-column: auto; }
     }
 
     .user-headline {
@@ -49,6 +47,60 @@
     }
     dl.info dt { color: #777; }
     dl.info dd { margin: 0; }
+
+    /* ---------- Кнопка-иконка копирования ---------- */
+    .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid #d0d7e2;
+        background: #f7f9fc;
+        color: #2d6cdf;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 6px;
+        vertical-align: middle;
+        font-family: inherit;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { background: #eaf1ff; border-color: #b9cdf5; }
+    .copy-btn:active { background: #dbe8ff; }
+
+    /* Иконка «буфер обмена» */
+    .copy-btn::before {
+        content: "";
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        background-color: currentColor;
+        -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+
+    /* Успешно скопировано — зелёная галочка */
+    .copy-btn.copied {
+        background: #d4f4dd;
+        border-color: #7bc893;
+        color: #1e7a37;
+    }
+    .copy-btn.copied::before {
+        -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+
+    /* Ошибка копирования — красный крестик */
+    .copy-btn.copy-error {
+        background: #fbe1e0;
+        border-color: #e3a2a0;
+        color: #b0322e;
+    }
+    .copy-btn.copy-error::before {
+        -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E") center/contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
 
     .user-list {
         display: flex;
@@ -80,6 +132,7 @@
         font-size: 15px;
         border: 1px solid #bbb;
         border-radius: 6px;
+        min-width: 0;
     }
     form.add-history button {
         padding: 8px 16px;
@@ -102,6 +155,8 @@
         padding: 10px 0;
         border-bottom: 1px solid #eee;
         font-size: 15px;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
     }
     ul.history li:last-child { border-bottom: none; }
     ul.history .when {
@@ -111,9 +166,48 @@
         margin-bottom: 2px;
     }
 
-    /* Таблицы в правой колонке не должны вылезать за границы */
     .detail-side table { font-size: 14px; }
     .detail-side th, .detail-side td { padding: 6px 6px; }
+
+    .detail-main table {
+        width: 100%;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    /* ---------- Кнопка проверки связи ---------- */
+    .ping-btn {
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        background: #2d6cdf;
+        color: white;
+        cursor: pointer;
+        width: 100%;
+    }
+    .ping-btn:hover:not(:disabled) { background: #1e52b5; }
+    .ping-btn:disabled {
+        background: #9bb6e3;
+        cursor: wait;
+    }
+
+    .ping-output {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border-radius: 6px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 11.5px;
+        line-height: 1.5;
+        white-space: pre;
+        overflow: auto;
+        max-height: 420px;
+        min-height: 80px;
+    }
+    .ping-output.ok { border-left: 4px solid #2eb85c; }
+    .ping-output.fail { border-left: 4px solid #d9534f; }
 {% endblock %}
 
 {% block content %}
@@ -121,7 +215,28 @@
 
     <div class="detail-layout">
 
-        {# ================= ЛЕВАЯ КОЛОНКА ================= #}
+        {# ================= ЛЕВАЯ КОЛОНКА — ПРОВЕРКА СВЯЗИ ================= #}
+        <aside class="detail-left">
+            <div class="card">
+                <h2>Проверка связи</h2>
+                {% if can_edit %}
+                    <button
+                        id="ping-btn"
+                        type="button"
+                        class="ping-btn"
+                        data-url="{% url 'inventory:host_ping' host.pk %}"
+                    >Проверить пинг</button>
+                    <pre id="ping-output" class="ping-output" hidden></pre>
+                {% else %}
+                    <p class="empty">
+                        Проверка связи доступна только администратору.
+                        <a href="{% url 'admin:login' %}?next={{ request.path }}">Войти</a>
+                    </p>
+                {% endif %}
+            </div>
+        </aside>
+
+        {# ================= ЦЕНТРАЛЬНАЯ КОЛОНКА ================= #}
         <div class="detail-main">
 
             {# ---------- 1. ПОЛЬЗОВАТЕЛИ ---------- #}
@@ -164,12 +279,34 @@
                 <h2>Учётные записи <span class="count">({{ accounts|length }})</span></h2>
                 {% if accounts %}
                     <table>
-                        <tr><th>Вид</th><th>Логин</th><th>Пароль</th><th>Пользователь</th><th>Комментарий</th></tr>
+                        <tr>
+                            <th>Вид</th>
+                            <th>Логин</th>
+                            <th>Пароль</th>
+                            <th>Пользователь</th>
+                            <th>Комментарий</th>
+                        </tr>
                         {% for a in accounts %}
                         <tr>
                             <td>{{ a.get_kind_display }}</td>
-                            <td>{{ a.login }}</td>
-                            <td class="mono">{{ a.password }}</td>
+                            <td>
+                                {{ a.login }}
+                                {% if a.login %}
+                                    <button class="copy-btn" type="button"
+                                            data-copy="{{ a.login }}"
+                                            title="Скопировать логин"
+                                            aria-label="Скопировать логин"></button>
+                                {% endif %}
+                            </td>
+                            <td class="mono">
+                                {{ a.password }}
+                                {% if a.password %}
+                                    <button class="copy-btn" type="button"
+                                            data-copy="{{ a.password }}"
+                                            title="Скопировать пароль"
+                                            aria-label="Скопировать пароль"></button>
+                                {% endif %}
+                            </td>
                             <td>{{ a.person.full_name }}</td>
                             <td>{{ a.comment|default:"—" }}</td>
                         </tr>
@@ -185,9 +322,40 @@
                 <h2>Информация о хосте</h2>
                 <dl class="info">
                     <dt>Вид</dt><dd>{{ host.get_kind_display }}</dd>
-                    <dt>IP-адрес</dt><dd class="mono">{{ host.ip_address }}</dd>
-                    <dt>Доменное имя</dt><dd>{{ host.domain_name|default:"—" }}</dd>
-                    <dt>MAC-адрес</dt><dd class="mono">{{ host.mac_address|default:"—" }}</dd>
+
+                    <dt>IP-адрес</dt>
+                    <dd class="mono">
+                        {{ host.ip_address }}
+                        {% if host.ip_address %}
+                            <button class="copy-btn" type="button"
+                                    data-copy="{{ host.ip_address }}"
+                                    title="Скопировать IP-адрес"
+                                    aria-label="Скопировать IP-адрес"></button>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Доменное имя</dt>
+                    <dd>
+                        {{ host.domain_name|default:"—" }}
+                        {% if host.domain_name %}
+                            <button class="copy-btn" type="button"
+                                    data-copy="{{ host.domain_name }}"
+                                    title="Скопировать доменное имя"
+                                    aria-label="Скопировать доменное имя"></button>
+                        {% endif %}
+                    </dd>
+
+                    <dt>MAC-адрес</dt>
+                    <dd class="mono">
+                        {{ host.mac_address|default:"—" }}
+                        {% if host.mac_address %}
+                            <button class="copy-btn" type="button"
+                                    data-copy="{{ host.mac_address }}"
+                                    title="Скопировать MAC-адрес"
+                                    aria-label="Скопировать MAC-адрес"></button>
+                        {% endif %}
+                    </dd>
+
                     <dt>Описание</dt><dd>{{ host.description|default:"—"|linebreaksbr }}</dd>
                     <dt>Комментарий</dt><dd>{{ host.comment|default:"—"|linebreaksbr }}</dd>
                 </dl>
@@ -288,4 +456,98 @@
         </aside>
 
     </div>
+
+    {# ---------- JavaScript: ping + copy-to-clipboard ---------- #}
+    <script>
+    (function () {
+        /* ---------- PING ---------- */
+        var btn = document.getElementById("ping-btn");
+        var out = document.getElementById("ping-output");
+
+        function getCookie(name) {
+            var m = document.cookie.match(new RegExp("(^|; )" + name + "=([^;]*)"));
+            return m ? decodeURIComponent(m[2]) : null;
+        }
+
+        if (btn && out) {
+            btn.addEventListener("click", function () {
+                btn.disabled = true;
+                btn.textContent = "Пингую...";
+                out.hidden = false;
+                out.className = "ping-output";
+                out.textContent = "Выполняется ping, подождите...";
+
+                fetch(btn.dataset.url, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                })
+                .then(function (resp) { return resp.json(); })
+                .then(function (data) {
+                    if (data.ok) {
+                        out.className = "ping-output ok";
+                        out.textContent = data.output || "(пустой ответ от ping)";
+                    } else {
+                        out.className = "ping-output fail";
+                        out.textContent = data.error || data.output || "Не удалось выполнить ping.";
+                    }
+                })
+                .catch(function (err) {
+                    out.className = "ping-output fail";
+                    out.textContent = "Ошибка запроса: " + err;
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                    btn.textContent = "Проверить пинг";
+                });
+            });
+        }
+
+        /* ---------- COPY ---------- */
+        function fallbackCopy(text, onDone) {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.top = "-1000px";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                var ok = document.execCommand("copy");
+                onDone(!!ok);
+            } catch (e) {
+                onDone(false);
+            }
+            document.body.removeChild(ta);
+        }
+
+        function flash(btn, ok) {
+            btn.classList.remove("copied", "copy-error");
+            btn.classList.add(ok ? "copied" : "copy-error");
+            setTimeout(function () {
+                btn.classList.remove("copied", "copy-error");
+            }, 1200);
+        }
+
+        document.querySelectorAll(".copy-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var text = btn.dataset.copy || "";
+                if (!text) return;
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text)
+                        .then(function () { flash(btn, true); })
+                        .catch(function () {
+                            fallbackCopy(text, function (ok) { flash(btn, ok); });
+                        });
+                } else {
+                    fallbackCopy(text, function (ok) { flash(btn, ok); });
+                }
+            });
+        });
+    })();
+    </script>
 {% endblock %}

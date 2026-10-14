@@ -1,6 +1,12 @@
+import ipaddress
+import platform
+import subprocess
+
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .models import (
     Account,
@@ -111,3 +117,61 @@ def host_detail(request, pk):
         "can_edit": can_edit,
     }
     return render(request, "inventory/host_detail.html", context)
+
+
+@require_POST
+def host_ping(request, pk):
+    """Запускает ping до IP-адреса хоста. Возвращает JSON с выводом команды."""
+    if not (request.user.is_authenticated and request.user.is_staff):
+        return JsonResponse(
+            {"ok": False, "error": "Проверка связи доступна только администратору."},
+            status=403,
+        )
+
+    host = get_object_or_404(Host, pk=pk)
+    ip = host.ip_address
+
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Некорректный IP-адрес."}, status=400)
+
+    system = platform.system().lower()
+    if system == "windows":
+        cmd = ["ping", "-n", "4", "-w", "2000", ip]
+    else:
+        cmd = ["ping", "-c", "4", "-W", "2", ip]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        return JsonResponse({"ok": False, "error": "Тайм-аут ping (15 секунд)."})
+    except FileNotFoundError:
+        return JsonResponse(
+            {"ok": False, "error": "Утилита ping не найдена на сервере."}
+        )
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": f"Ошибка: {exc}"})
+
+    # Захватываем как байты — декодируем вручную под правильную кодировку.
+    raw = (result.stdout or b"") + (result.stderr or b"")
+
+    if system == "windows":
+        # Консоль русской Windows печатает в CP866; изредка — cp1251.
+        candidates = ("cp866", "cp1251", "utf-8")
+    else:
+        candidates = ("utf-8",)
+
+    output = None
+    for enc in candidates:
+        try:
+            output = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if output is None:
+        output = raw.decode("utf-8", errors="replace")
+
+    output = output.strip()
+    return JsonResponse({"ok": result.returncode == 0, "output": output})
