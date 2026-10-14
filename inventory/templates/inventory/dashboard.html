@@ -14,6 +14,12 @@
         font-size: 16px;
         border: 1px solid #bbb;
         border-radius: 6px;
+        background: #fff;
+    }
+    form.search input[type="text"]:focus {
+        outline: none;
+        border-color: #2d6cdf;
+        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
     }
     form.search button {
         padding: 10px 18px;
@@ -32,7 +38,6 @@
         font-size: 15px;
     }
 
-    /* Строки внутри ячеек с несколькими пользователями */
     .user-line {
         margin-bottom: 4px;
         line-height: 1.35;
@@ -40,10 +45,46 @@
     }
     .user-line:last-child { margin-bottom: 0; }
 
-    /* Кликабельные строки таблицы */
-    tr.row-link { cursor: pointer; }
+    /* ---------- Кликабельные заголовки таблицы ---------- */
+    th.sortable a {
+        color: #777;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+    }
+    th.sortable a:hover { color: #2d6cdf; }
+    th.sortable.active a { color: #2d6cdf; }
+    th.sortable .arrow {
+        font-size: 11px;
+        line-height: 1;
+    }
+    th.sortable .arrow.placeholder {
+        opacity: 0.25;
+    }
+
+    /* ---------- Кликабельные и подсвечиваемые строки ---------- */
+    tr.row-link {
+        cursor: pointer;
+        transition: background 0.12s ease;
+    }
+    tr.row-link td:first-child { position: relative; }
+    tr.row-link td:first-child::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 3px;
+        background: #2d6cdf;
+        border-radius: 2px;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+    }
     tr.row-link:hover td { background: #e8f0fe; }
-    tr.row-link:active td { background: м }
+    tr.row-link:hover td:first-child::before { opacity: 1; }
+    tr.row-link:active td { background: #d8e4fb; }
 {% endblock %}
 
 {% block content %}
@@ -70,10 +111,46 @@
     {% if hosts %}
         <table>
             <tr>
-                <th>ФИО</th>
-                <th>Доменное имя</th>
-                <th>IP-адрес</th>
-                <th>Телефон</th>
+                <th class="sortable {% if sort == 'fio' %}active{% endif %}">
+                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=fio&amp;dir={% if sort == 'fio' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                        ФИО
+                        {% if sort == 'fio' %}
+                            <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                        {% else %}
+                            <span class="arrow placeholder">↕</span>
+                        {% endif %}
+                    </a>
+                </th>
+                <th class="sortable {% if sort == 'domain' %}active{% endif %}">
+                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                        Доменное имя
+                        {% if sort == 'domain' %}
+                            <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                        {% else %}
+                            <span class="arrow placeholder">↕</span>
+                        {% endif %}
+                    </a>
+                </th>
+                <th class="sortable {% if sort == 'ip' %}active{% endif %}">
+                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=ip&amp;dir={% if sort == 'ip' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                        IP-адрес
+                        {% if sort == 'ip' %}
+                            <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                        {% else %}
+                            <span class="arrow placeholder">↕</span>
+                        {% endif %}
+                    </a>
+                </th>
+                <th class="sortable {% if sort == 'phone' %}active{% endif %}">
+                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=phone&amp;dir={% if sort == 'phone' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                        Телефон
+                        {% if sort == 'phone' %}
+                            <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                        {% else %}
+                            <span class="arrow placeholder">↕</span>
+                        {% endif %}
+                    </a>
+                </th>
             </tr>
             {% for h in hosts %}
             <tr class="row-link" data-href="{% url 'inventory:host_detail' h.id %}">
@@ -157,6 +234,23 @@
             <p class="empty">Не найдено.</p>
         {% endif %}
 
+        {# ---------- ПО ---------- #}
+        <h2>ПО (найдено: {{ softwares|length }})</h2>
+        {% if softwares %}
+            <table>
+                <tr><th>Название</th><th>Версия</th><th>Комментарий</th></tr>
+                {% for s in softwares %}
+                <tr class="row-link" data-href="/admin/inventory/software/{{ s.id }}/change/">
+                    <td>{{ s.name }}</td>
+                    <td class="mono">{{ s.version|default:"—" }}</td>
+                    <td>{{ s.comment|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p class="empty">Не найдено.</p>
+        {% endif %}
+
         {# ---------- ИСТОРИЯ ---------- #}
         <h2>История (найдено: {{ history|length }})</h2>
         {% if history %}
@@ -179,10 +273,8 @@
     <script>
         document.querySelectorAll("tr.row-link").forEach(function (row) {
             row.addEventListener("click", function (event) {
-                // не переходим, если кликнули по ссылке/кнопке/полю или выделили текст
                 if (event.target.closest("a, button, input, textarea, select")) return;
                 if (window.getSelection().toString().length > 0) return;
-
                 var href = row.dataset.href;
                 if (href) window.location.href = href;
             });

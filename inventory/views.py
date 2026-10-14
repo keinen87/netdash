@@ -3,7 +3,7 @@ import platform
 import subprocess
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Min, OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -19,8 +19,19 @@ from .models import (
 )
 
 
+# Разрешённые ключи сортировки (whitelist — защита от произвольных полей в запросе)
+HOST_SORT_FIELDS = {
+    "fio": "first_user_name",
+    "domain": "domain_name",
+    "ip": "ip_address",
+    "phone": "first_user_phone",
+}
+
+
 def dashboard(request):
     query = request.GET.get("q", "").strip()
+    sort = request.GET.get("sort", "").strip()
+    direction = request.GET.get("dir", "asc").strip()
 
     hosts = Host.objects.all().prefetch_related("users", "softwares")
     persons = Person.objects.none()
@@ -30,29 +41,21 @@ def dashboard(request):
     softwares = Software.objects.none()
 
     if query:
-        # ---------- ХОСТЫ ----------
-        # Ищем во всех собственных полях, а также во всех связанных моделях:
-        # HardwareInfo (OneToOne), Account/SIM/History (FK),
-        # Person/Software (M2M).
         hosts = hosts.filter(
-            # Собственные поля хоста
             Q(description__icontains=query)
             | Q(kind__icontains=query)
             | Q(domain_name__icontains=query)
             | Q(ip_address__icontains=query)
             | Q(mac_address__icontains=query)
             | Q(comment__icontains=query)
-            # M2M: пользователи
             | Q(users__full_name__icontains=query)
             | Q(users__position__icontains=query)
             | Q(users__phone_work__icontains=query)
             | Q(users__description__icontains=query)
             | Q(users__comment__icontains=query)
-            # M2M: ПО
             | Q(softwares__name__icontains=query)
             | Q(softwares__version__icontains=query)
             | Q(softwares__comment__icontains=query)
-            # OneToOne: аппаратная часть
             | Q(hardware__manufacturer__icontains=query)
             | Q(hardware__cpu__icontains=query)
             | Q(hardware__ram__icontains=query)
@@ -60,29 +63,24 @@ def dashboard(request):
             | Q(hardware__storage_type__icontains=query)
             | Q(hardware__storage_capacity__icontains=query)
             | Q(hardware__comment__icontains=query)
-            # FK: учётные записи
             | Q(accounts__login__icontains=query)
             | Q(accounts__kind__icontains=query)
             | Q(accounts__comment__icontains=query)
             | Q(accounts__person__full_name__icontains=query)
-            # FK: SIM-карты
             | Q(sims__full_number__icontains=query)
             | Q(sims__short_number__icontains=query)
             | Q(sims__icc__icontains=query)
             | Q(sims__comment__icontains=query)
             | Q(sims__person__full_name__icontains=query)
-            # FK: история
             | Q(history__fact__icontains=query)
         ).distinct()
 
-        # ---------- ПОЛЬЗОВАТЕЛИ ----------
         persons = Person.objects.filter(
             Q(full_name__icontains=query)
             | Q(position__icontains=query)
             | Q(phone_work__icontains=query)
             | Q(description__icontains=query)
             | Q(comment__icontains=query)
-            # ищем и по связанным хостам, учёткам, SIM
             | Q(hosts__domain_name__icontains=query)
             | Q(hosts__ip_address__icontains=query)
             | Q(accounts__login__icontains=query)
@@ -91,8 +89,6 @@ def dashboard(request):
             | Q(sims__icc__icontains=query)
         ).distinct()
 
-        # ---------- УЧЁТНЫЕ ЗАПИСИ ----------
-        # Пароль исключён намеренно — см. комментарий выше.
         accounts = Account.objects.filter(
             Q(login__icontains=query)
             | Q(kind__icontains=query)
@@ -103,7 +99,6 @@ def dashboard(request):
             | Q(host__ip_address__icontains=query)
         ).distinct()
 
-        # ---------- SIM-КАРТЫ ----------
         sims = SIM.objects.filter(
             Q(full_number__icontains=query)
             | Q(short_number__icontains=query)
@@ -114,7 +109,6 @@ def dashboard(request):
             | Q(host__ip_address__icontains=query)
         ).distinct()
 
-        # ---------- ИСТОРИЯ ----------
         history = History.objects.filter(
             Q(fact__icontains=query)
             | Q(host__domain_name__icontains=query)
@@ -122,7 +116,6 @@ def dashboard(request):
             | Q(person__full_name__icontains=query)
         ).distinct()
 
-        # ---------- ПО ----------
         softwares = Software.objects.filter(
             Q(name__icontains=query)
             | Q(version__icontains=query)
@@ -131,8 +124,29 @@ def dashboard(request):
             | Q(hosts__ip_address__icontains=query)
         ).distinct()
 
+    # ---------- СОРТИРОВКА ----------
+    # Аннотируем имя и телефон первого пользователя, чтобы сортировка
+    # совпадала с тем, что реально видно в ячейках ФИО и Телефон.
+    first_user = (
+        Person.objects
+        .filter(hosts=OuterRef("pk"))
+        .order_by("full_name")
+    )
+    hosts = hosts.annotate(
+        first_user_name=Subquery(first_user.values("full_name")[:1]),
+        first_user_phone=Subquery(first_user.values("phone_work")[:1]),
+    )
+
+    if sort in HOST_SORT_FIELDS:
+        field = HOST_SORT_FIELDS[sort]
+        if direction == "desc":
+            field = "-" + field
+        hosts = hosts.order_by(field)
+
     context = {
         "query": query,
+        "sort": sort,
+        "direction": direction,
         "hosts": hosts,
         "persons": persons,
         "accounts": accounts,
