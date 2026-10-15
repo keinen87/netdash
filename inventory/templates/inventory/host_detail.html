@@ -213,20 +213,30 @@
         {# ================= ЛЕВАЯ КОЛОНКА — ПРОВЕРКА СВЯЗИ ================= #}
         <aside class="detail-left">
             <div class="card">
-                <h2>Проверка связи</h2>
-                {% if can_edit %}
-                    <button
-                        id="ping-btn"
-                        type="button"
-                        class="ping-btn"
-                        data-url="{% url 'inventory:host_ping' host.pk %}"
-                    >Проверить пинг</button>
-                    <pre id="ping-output" class="ping-output" hidden></pre>
+                <h2>SIM-карты <span class="count">({{ sims|length }})</span></h2>
+                {% if sims %}
+                    <table>
+                        <tr>
+                            <th>Абонентский</th>
+                            <th>Короткий</th>
+                            <th>ICC</th>
+                            <th>APN</th>
+                            <th>Пользователь</th>
+                            <th>Комментарий</th>
+                        </tr>
+                        {% for s in sims %}
+                        <tr>
+                            <td class="mono">{{ s.full_number }}</td>
+                            <td class="mono">{{ s.short_number|default:"—" }}</td>
+                            <td class="mono">{{ s.icc }}</td>
+                            <td class="mono">{{ s.apn|default:"—" }}</td>
+                            <td>{{ s.person|default:"—" }}</td>
+                            <td>{{ s.comment|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
                 {% else %}
-                    <p class="empty">
-                        Проверка связи доступна только администратору.
-                        <a href="{% url 'admin:login' %}?next={{ request.path }}">Войти</a>
-                    </p>
+                    <p class="empty">SIM-карт нет.</p>
                 {% endif %}
             </div>
         </aside>

@@ -34,14 +34,14 @@ class SIMInlineForPerson(admin.TabularInline):
     model = SIM
     fk_name = "person"
     extra = 0
-    fields = ("full_number", "short_number", "icc", "host", "comment")
+    fields = ("full_number", "short_number", "icc", "apn", "host", "comment")
 
 
 class SIMInlineForHost(admin.TabularInline):
     model = SIM
     fk_name = "host"
     extra = 0
-    fields = ("full_number", "short_number", "icc", "person", "comment")
+    fields = ("full_number", "short_number", "icc", "apn", "person", "comment")
 
 
 class HistoryInlineForPerson(admin.TabularInline):
@@ -129,7 +129,6 @@ class HostAdmin(admin.ModelAdmin):
     actions = ["copy_hardware_from"]
 
     def get_queryset(self, request):
-        """Подтягиваем связанных пользователей одним запросом."""
         qs = super().get_queryset(request)
         return qs.prefetch_related("users")
 
@@ -263,8 +262,8 @@ class AccountAdmin(admin.ModelAdmin):
 
 @admin.register(SIM)
 class SIMAdmin(admin.ModelAdmin):
-    list_display = ("full_number", "short_number", "icc", "person", "host")
-    search_fields = ("full_number", "short_number", "icc")
+    list_display = ("full_number", "short_number", "icc", "apn", "person", "host")
+    search_fields = ("full_number", "short_number", "icc", "apn")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)

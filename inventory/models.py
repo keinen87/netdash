@@ -192,6 +192,7 @@ class SIM(models.Model):
     full_number = models.CharField("Абонентский номер", max_length=32)
     short_number = models.CharField("Короткий номер", max_length=16, blank=True)
     icc = models.CharField("ICC", max_length=32, unique=True)
+    apn = models.CharField("APN", max_length=100, default="internet")
     comment = models.TextField("Комментарий", blank=True)
 
     person = models.ForeignKey(

@@ -219,12 +219,13 @@
         <h2>SIM-карты (найдено: {{ sims|length }})</h2>
         {% if sims %}
             <table>
-                <tr><th>Абонентский</th><th>Короткий</th><th>ICC</th><th>Пользователь</th><th>Хост</th></tr>
+                <tr><th>Абонентский</th><th>Короткий</th><th>ICC</th><th>APN</th><th>Пользователь</th><th>Хост</th></tr>
                 {% for s in sims %}
                 <tr class="row-link" data-href="/admin/inventory/sim/{{ s.id }}/change/">
                     <td>{{ s.full_number }}</td>
                     <td class="mono">{{ s.short_number|default:"—" }}</td>
                     <td class="mono">{{ s.icc }}</td>
+                    <td class="mono">{{ s.apn|default:"—" }}</td>
                     <td>{{ s.person|default:"—" }}</td>
                     <td>{{ s.host|default:"—" }}</td>
                 </tr>
