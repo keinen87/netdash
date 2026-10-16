@@ -65,6 +65,9 @@ class Host(models.Model):
         (KIND_OTHER, "Другое"),
     ]
 
+    # Виды хостов, на которых может быть установлен TeamViewer
+    TEAMVIEWER_KINDS = {KIND_PC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
+
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     domain_name = models.CharField("Доменное имя", max_length=255, blank=True)
@@ -92,6 +95,11 @@ class Host(models.Model):
 
     def __str__(self):
         return self.domain_name or self.ip_address
+
+    @property
+    def supports_teamviewer(self):
+        """Может ли на этом хосте быть TeamViewer."""
+        return self.kind in self.TEAMVIEWER_KINDS
 
 
 class HardwareInfo(models.Model):

@@ -203,6 +203,25 @@
     }
     .ping-output.ok { border-left: 4px solid #2eb85c; }
     .ping-output.fail { border-left: 4px solid #d9534f; }
+
+    /* ---------- Кнопка TeamViewer ---------- */
+    .tv-btn {
+        display: block;
+        margin-top: 12px;
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        background: #0e8ee9;
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        text-align: center;
+        box-sizing: border-box;
+        transition: background 0.15s;
+    }
+    .tv-btn:hover { background: #0b76c4; }
+    .tv-btn:active { background: #095e9e; }
 {% endblock %}
 
 {% block content %}
@@ -214,6 +233,7 @@
         <aside class="detail-left">
             <div class="card">
                 <h2>Проверка связи</h2>
+
                 {% if can_edit %}
                     <button
                         id="ping-btn"
@@ -222,6 +242,14 @@
                         data-url="{% url 'inventory:host_ping' host.pk %}"
                     >Проверить пинг</button>
                     <pre id="ping-output" class="ping-output" hidden></pre>
+
+                    {% if host.ip_address and host.supports_teamviewer %}
+                        <a
+                            class="tv-btn"
+                            href="teamviewer10://control?device={{ host.ip_address }}"
+                            title="Подключиться по TeamViewer к {{ host.ip_address }}"
+                        >Подключиться по TeamViewer</a>
+                    {% endif %}
                 {% else %}
                     <p class="empty">
                         Проверка связи доступна только администратору.
