@@ -42,6 +42,7 @@ class Host(models.Model):
     """Любое устройство в сети, которому присвоен IP-адрес."""
 
     KIND_PC = "pc"
+    KIND_MINIPC = "minipc"
     KIND_LAPTOP = "laptop"
     KIND_CAMERA = "camera"
     KIND_NVR = "nvr"
@@ -53,6 +54,7 @@ class Host(models.Model):
 
     KIND_CHOICES = [
         (KIND_PC, "Настольный ПК"),
+        (KIND_MINIPC, "Мини ПК"),
         (KIND_LAPTOP, "Ноутбук"),
         (KIND_CAMERA, "IP-камера"),
         (KIND_NVR, "IP-видеорегистратор"),
