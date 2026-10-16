@@ -9,9 +9,10 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
-
+import os
+from dotenv import load_dotenv
 from pathlib import Path
-
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,6 +29,17 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 FIELD_ENCRYPTION_KEY = 'crIlbneVA3HN_9l9oOXekpyAMNZP1wfRJ4RiKnBK26k='
+
+# ---------- LDAP ----------
+LDAP_SERVER = os.environ.get("LDAP_SERVER", "")
+LDAP_PORT = int(os.environ.get("LDAP_PORT", "389"))
+LDAP_USE_SSL = os.environ.get("LDAP_USE_SSL", "False").lower() in ("1", "true", "yes")
+LDAP_BIND_DN = os.environ.get("LDAP_BIND_DN", "")
+LDAP_BIND_PASSWORD = os.environ.get("LDAP_BIND_PASSWORD", "")
+LDAP_BASE_DN = os.environ.get("LDAP_BASE_DN", "")
+LDAP_SIZE_LIMIT = int(os.environ.get("LDAP_SIZE_LIMIT", "50"))
+LDAP_TIMEOUT = int(os.environ.get("LDAP_TIMEOUT", "10"))
+LDAP_NETBIOS_DOMAIN = os.environ.get("LDAP_NETBIOS_DOMAIN", "") 
 
 LOGIN_URL = "/admin/login/"
 LOGIN_REDIRECT_URL = "/"

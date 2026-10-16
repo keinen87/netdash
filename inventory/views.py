@@ -3,11 +3,12 @@ import platform
 import subprocess
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Min, OuterRef, Q, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from . import ldap_client
 from .models import (
     Account,
     HardwareInfo,
@@ -19,7 +20,6 @@ from .models import (
 )
 
 
-# Разрешённые ключи сортировки (whitelist — защита от произвольных полей в запросе)
 HOST_SORT_FIELDS = {
     "fio": "first_user_name",
     "domain": "domain_name",
@@ -126,9 +126,6 @@ def dashboard(request):
             | Q(hosts__ip_address__icontains=query)
         ).distinct()
 
-    # ---------- СОРТИРОВКА ----------
-    # Аннотируем имя и телефон первого пользователя, чтобы сортировка
-    # совпадала с тем, что реально видно в ячейках ФИО и Телефон.
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
@@ -195,7 +192,6 @@ def host_detail(request, pk):
 
 @require_POST
 def host_ping(request, pk):
-    """Запускает ping до IP-адреса хоста. Возвращает JSON с выводом команды."""
     if not (request.user.is_authenticated and request.user.is_staff):
         return JsonResponse(
             {"ok": False, "error": "Проверка связи доступна только администратору."},
@@ -221,14 +217,11 @@ def host_ping(request, pk):
     except subprocess.TimeoutExpired:
         return JsonResponse({"ok": False, "error": "Тайм-аут ping (15 секунд)."})
     except FileNotFoundError:
-        return JsonResponse(
-            {"ok": False, "error": "Утилита ping не найдена на сервере."}
-        )
+        return JsonResponse({"ok": False, "error": "Утилита ping не найдена на сервере."})
     except Exception as exc:
         return JsonResponse({"ok": False, "error": f"Ошибка: {exc}"})
 
     raw = (result.stdout or b"") + (result.stderr or b"")
-
     if system == "windows":
         candidates = ("cp866", "cp1251", "utf-8")
     else:
@@ -241,9 +234,43 @@ def host_ping(request, pk):
             break
         except UnicodeDecodeError:
             continue
-
     if output is None:
         output = raw.decode("utf-8", errors="replace")
 
-    output = output.strip()
-    return JsonResponse({"ok": result.returncode == 0, "output": output})
+    return JsonResponse({"ok": result.returncode == 0, "output": output.strip()})
+
+
+def ldap_search_view(request):
+    if not (request.user.is_authenticated and request.user.is_staff):
+        raise PermissionDenied("Поиск в каталоге доступен только администратору.")
+
+    query = request.GET.get("q", "").strip()
+    results = []
+    error = None
+
+    if query:
+        results, error = ldap_client.search_ldap(query)
+
+    context = {
+        "query": query,
+        "results": results,
+        "error": error,
+        "is_configured": ldap_client.is_configured(),
+        "attribute_labels": ldap_client.ATTRIBUTE_LABELS,
+        "attribute_order": [
+            "domain_login",
+            "displayName",
+            "givenName",
+            "sn",
+            "mail",
+            "telephoneNumber",
+            "mobile",
+            "title",
+            "department",
+            "company",
+            "physicalDeliveryOfficeName",
+            "whenCreated",
+            "lastLogonTimestamp",
+        ],
+    }
+    return render(request, "inventory/ldap_search.html", context)

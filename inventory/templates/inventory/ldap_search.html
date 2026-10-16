@@ -1,0 +1,230 @@
+{% extends "inventory/base.html" %}
+{% load dict_extras %}
+
+{% block body_max_width %}1400px{% endblock %}
+
+{% block title %}Поиск в домене — NetDash{% endblock %}
+
+{% block extra_css %}
+    .back { font-size: 15px; margin-bottom: 1rem; }
+
+    form.dir-search {
+        display: flex;
+        gap: 8px;
+        margin: 1.5rem 0;
+    }
+    form.dir-search input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 16px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        background: #fff;
+    }
+    form.dir-search input[type="text"]:focus {
+        outline: none;
+        border-color: #2d6cdf;
+        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
+    }
+    form.dir-search button {
+        padding: 10px 18px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        background: #2d6cdf;
+        color: white;
+        cursor: pointer;
+    }
+    form.dir-search button:hover { background: #1e52b5; }
+    form.dir-search button:disabled {
+        background: #9bb6e3;
+        cursor: not-allowed;
+    }
+
+    .notice {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin: 1rem 0;
+        font-size: 15px;
+    }
+    .notice.error {
+        background: #fbe1e0;
+        color: #b0322e;
+        border-left: 4px solid #d9534f;
+    }
+    .notice.warn {
+        background: #fff4d6;
+        color: #8a6d1a;
+        border-left: 4px solid #e2a92e;
+    }
+    .notice.info {
+        background: #e8f0fe;
+        color: #2d6cdf;
+        border-left: 4px solid #2d6cdf;
+    }
+
+    .user-card {
+        background: #fff;
+        border: 1px solid #e6e6e2;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .user-card h3 {
+        margin: 0 0 8px;
+        font-size: 19px;
+        color: #222;
+    }
+    .user-card .dn {
+        font-family: monospace;
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 12px;
+        word-break: break-all;
+    }
+    .user-card dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 6px 12px;
+        font-size: 15px;
+    }
+    .user-card dt { color: #777; }
+    .user-card dd { margin: 0; word-break: break-word; }
+
+    .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid #d0d7e2;
+        background: #f7f9fc;
+        color: #2d6cdf;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 6px;
+        vertical-align: middle;
+        font-family: inherit;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { background: #eaf1ff; border-color: #b9cdf5; }
+    .copy-btn::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        background-color: currentColor;
+        -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
+        mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2' ry='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+    .copy-btn.copied {
+        background: #d4f4dd;
+        border-color: #7bc893;
+        color: #1e7a37;
+    }
+{% endblock %}
+
+{% block content %}
+    <p class="back"><a href="{% url 'inventory:dashboard' %}">← На главную</a></p>
+
+    <h1>Поиск в домене</h1>
+    <p style="color:#777; font-size: 15px;">
+        Поиск учётных записей в Active Directory. Введите фамилию, логин, email или телефон.
+    </p>
+
+    {% if not is_configured %}
+        <div class="notice warn">
+            LDAP не настроен. Проверьте переменные <code>LDAP_*</code> в файле <code>.env</code>
+            и перезапустите сервер.
+        </div>
+    {% endif %}
+
+    <form class="dir-search" method="get" action="">
+        <input
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Например: Иванов, ivanov, ivanov@company.local"
+            autofocus
+            {% if not is_configured %}disabled{% endif %}
+        >
+        <button type="submit" {% if not is_configured %}disabled{% endif %}>Искать в домене</button>
+    </form>
+
+    {% if error %}
+        <div class="notice error">{{ error }}</div>
+    {% endif %}
+
+    {% if query and not error %}
+        <p style="color:#555;">
+            {% if results %}
+                Найдено записей: <strong>{{ results|length }}</strong>
+                {% if results|length == 50 %} (показаны первые 50){% endif %}
+            {% else %}
+                По запросу <strong>«{{ query }}»</strong> ничего не найдено.
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {% for u in results %}
+        <div class="user-card">
+            <h3>{{ u.displayName|default:u.cn|default:u.sAMAccountName }}</h3>
+            <div class="dn">{{ u.entry_dn }}</div>
+            <dl>
+                {% for attr in attribute_order %}
+                    {% with value=u|get_item:attr %}
+                        {% if value %}
+                            <dt>{{ attribute_labels|get_item:attr|default:attr }}</dt>
+                            <dd>
+                                {{ value }}
+                                <button class="copy-btn" type="button"
+                                        data-copy="{{ value }}"
+                                        aria-label="Скопировать значение"></button>
+                            </dd>
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            </dl>
+        </div>
+    {% endfor %}
+
+    <script>
+    (function () {
+        function fallbackCopy(text, onDone) {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.top = "-1000px";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            try { onDone(!!document.execCommand("copy")); }
+            catch (e) { onDone(false); }
+            document.body.removeChild(ta);
+        }
+
+        function flash(btn, ok) {
+            btn.classList.remove("copied");
+            if (ok) btn.classList.add("copied");
+            setTimeout(function () { btn.classList.remove("copied"); }, 1200);
+        }
+
+        document.querySelectorAll(".copy-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var text = btn.dataset.copy || "";
+                if (!text) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text)
+                        .then(function () { flash(btn, true); })
+                        .catch(function () { fallbackCopy(text, function (ok) { flash(btn, ok); }); });
+                } else {
+                    fallbackCopy(text, function (ok) { flash(btn, ok); });
+                }
+            });
+        });
+    })();
+    </script>
+{% endblock %}

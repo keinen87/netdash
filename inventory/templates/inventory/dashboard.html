@@ -85,6 +85,31 @@
     tr.row-link:hover td { background: #e8f0fe; }
     tr.row-link:hover td:first-child::before { opacity: 1; }
     tr.row-link:active td { background: #d8e4fb; }
+
+    /* ---------- Нижняя ссылка на LDAP-поиск ---------- */
+    .bottom-nav {
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e0e0e0;
+        text-align: center;
+    }
+    .btn-secondary {
+        display: inline-block;
+        padding: 8px 18px;
+        font-size: 14px;
+        border: 1px solid #d0d7e2;
+        background: #f7f9fc;
+        color: #2d6cdf;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-secondary:hover { background: #eaf1ff; border-color: #b9cdf5; }
+    .btn-secondary::before {
+        content: "🔎";
+        margin-right: 6px;
+        font-size: 13px;
+    }
 {% endblock %}
 
 {% block content %}
@@ -270,6 +295,13 @@
             <p class="empty">Не найдено.</p>
         {% endif %}
     {% endif %}
+
+    {# ---------- Ссылка на поиск в домене — внизу страницы ---------- #}
+    <div class="bottom-nav">
+        <a href="{% url 'inventory:ldap_search' %}" class="btn-secondary">
+            Поиск в домене (LDAP)
+        </a>
+    </div>
 
     <script>
         document.querySelectorAll("tr.row-link").forEach(function (row) {
