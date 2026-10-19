@@ -48,6 +48,7 @@ class Host(models.Model):
     KIND_CAMERA = "camera"
     KIND_NVR = "nvr"
     KIND_PLC = "plc"
+    KIND_HMI = "hmi"
     KIND_ROUTER = "router"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
@@ -61,6 +62,7 @@ class Host(models.Model):
         (KIND_CAMERA, "IP-камера"),
         (KIND_NVR, "IP-видеорегистратор"),
         (KIND_PLC, "Промышленный контроллер"),
+        (KIND_HMI, "HMI панель"),
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
@@ -68,7 +70,7 @@ class Host(models.Model):
     ]
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
-    DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
+    DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
