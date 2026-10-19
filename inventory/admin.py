@@ -8,6 +8,7 @@ from .models import (
     HardwareInfo,
     History,
     Host,
+    IPAddress,
     Person,
     SIM,
     Software,
@@ -74,6 +75,12 @@ class HardwareInfoInline(admin.StackedInline):
     )
 
 
+class IPAddressInline(admin.TabularInline):
+    model = IPAddress
+    extra = 0
+    fields = ("address", "is_primary", "comment")
+
+
 # ---------- Форма для промежуточной страницы ----------
 
 class CopyHardwareForm(forms.Form):
@@ -104,7 +111,7 @@ class HostAdmin(admin.ModelAdmin):
     list_display = (
         "domain_name",
         "kind",
-        "ip_address",
+        "primary_ip",
         "mac_address",
         "users_list",
     )
@@ -112,15 +119,16 @@ class HostAdmin(admin.ModelAdmin):
     list_filter = ("kind",)
     search_fields = (
         "description",
-        "ip_address",
-        "mac_address",
         "domain_name",
+        "mac_address",
+        "ip_addresses__address",
         "hardware__manufacturer",
         "hardware__cpu",
         "users__full_name",
     )
     filter_horizontal = ("users", "softwares")
     inlines = [
+        IPAddressInline,
         HardwareInfoInline,
         AccountInlineForHost,
         SIMInlineForHost,
@@ -130,7 +138,11 @@ class HostAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.prefetch_related("users")
+        return qs.prefetch_related("users", "ip_addresses")
+
+    @admin.display(description="Основной IP")
+    def primary_ip(self, obj):
+        return obj.primary_ip or "—"
 
     @admin.display(description="Пользователи")
     def users_list(self, obj):
@@ -207,6 +219,14 @@ class HostAdmin(admin.ModelAdmin):
         return render(request, "admin/inventory/host/copy_hardware.html", context)
 
 
+@admin.register(IPAddress)
+class IPAddressAdmin(admin.ModelAdmin):
+    list_display = ("address", "host", "is_primary", "comment")
+    list_filter = ("is_primary",)
+    search_fields = ("address", "host__domain_name", "comment")
+    list_select_related = ("host",)
+
+
 @admin.register(HardwareInfo)
 class HardwareInfoAdmin(admin.ModelAdmin):
     list_display = (
@@ -221,7 +241,6 @@ class HardwareInfoAdmin(admin.ModelAdmin):
     list_filter = ("storage_type",)
     search_fields = (
         "host__domain_name",
-        "host__ip_address",
         "manufacturer",
         "cpu",
         "ram",

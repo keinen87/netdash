@@ -4,7 +4,7 @@
 
 {% block title %}
     {% with u=users|first %}
-        {% if u %}{{ u.full_name }}{% else %}{{ host.domain_name|default:host.ip_address }}{% endif %}
+        {% if u %}{{ u.full_name }}{% else %}{{ host.domain_name|default:host.primary_ip|default:"Хост" }}{% endif %}
     {% endwith %}
     — NetDash
 {% endblock %}
@@ -47,6 +47,31 @@
     }
     dl.info dt { color: #777; }
     dl.info dd { margin: 0; }
+
+    /* Список IP-адресов в карточке хоста */
+    .ip-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
+    }
+    .ip-line:last-child { margin-bottom: 0; }
+    .ip-line .ip-addr {
+        font-family: monospace;
+        font-size: 15px;
+    }
+    .ip-line .ip-comment {
+        color: #888;
+        font-size: 13px;
+    }
+    .ip-line .chip {
+        background: #e8f0fe;
+        color: #2d6cdf;
+        font-size: 12px;
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
 
     /* ---------- Кнопка-иконка копирования ---------- */
     .copy-btn {
@@ -277,11 +302,11 @@
                 <div class="card">
                     <h2>Удалённый доступ</h2>
 
-                    {% if host.supports_teamviewer and host.ip_address %}
+                    {% if host.supports_teamviewer and host.primary_ip %}
                         <a
                             class="tv-btn"
-                            href="teamviewer10://control?device={{ host.ip_address }}"
-                            title="Подключиться по TeamViewer к {{ host.ip_address }}"
+                            href="teamviewer10://control?device={{ host.primary_ip }}"
+                            title="Подключиться по TeamViewer к {{ host.primary_ip }}"
                         >Подключиться по TeamViewer</a>
                     {% endif %}
 
@@ -312,7 +337,7 @@
                         {% if u %}
                             {{ u.full_name }}
                         {% else %}
-                            {{ host.domain_name|default:host.ip_address }}
+                            {{ host.domain_name|default:host.primary_ip|default:"Хост" }}
                         {% endif %}
                     </div>
 
@@ -389,15 +414,25 @@
                 <dl class="info">
                     <dt>Вид</dt><dd>{{ host.get_kind_display }}</dd>
 
-                    <dt>IP-адрес</dt>
-                    <dd class="mono">
-                        {{ host.ip_address }}
-                        {% if host.ip_address %}
-                            <button class="copy-btn" type="button"
-                                    data-copy="{{ host.ip_address }}"
-                                    title="Скопировать IP-адрес"
-                                    aria-label="Скопировать IP-адрес"></button>
-                        {% endif %}
+                    <dt>IP-адреса</dt>
+                    <dd>
+                        {% for ip in ip_addresses %}
+                            <div class="ip-line">
+                                <span class="ip-addr">{{ ip.address }}</span>
+                                {% if ip.is_primary %}
+                                    <span class="chip">основной</span>
+                                {% endif %}
+                                {% if ip.comment %}
+                                    <span class="ip-comment">{{ ip.comment }}</span>
+                                {% endif %}
+                                <button class="copy-btn" type="button"
+                                        data-copy="{{ ip.address }}"
+                                        title="Скопировать {{ ip.address }}"
+                                        aria-label="Скопировать IP"></button>
+                            </div>
+                        {% empty %}
+                            —
+                        {% endfor %}
                     </dd>
 
                     <dt>Доменное имя</dt>
@@ -531,7 +566,7 @@
 
     </div>
 
-    {# ---------- JavaScript: ping + copy + open desktop (копирование пути) ---------- #}
+    {# ---------- JavaScript: ping + copy + open desktop ---------- #}
     <script>
     (function () {
         /* ---------- PING ---------- */

@@ -187,7 +187,7 @@
                     {% endfor %}
                 </td>
                 <td>{{ h.domain_name|default:"—" }}</td>
-                <td class="mono">{{ h.ip_address }}</td>
+                <td class="mono">{{ h.primary_ip|default:"—" }}</td>
                 <td>
                     {% for u in h.users.all %}
                         <div class="user-line mono">{{ u.phone_work|default:"—" }}</div>

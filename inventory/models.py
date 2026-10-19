@@ -1,5 +1,3 @@
-from urllib.parse import quote
-
 from django.db import models
 from django.utils import timezone
 
@@ -75,7 +73,6 @@ class Host(models.Model):
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     domain_name = models.CharField("Доменное имя", max_length=255, blank=True)
-    ip_address = models.GenericIPAddressField("IP-адрес", unique=True)
     mac_address = models.CharField("MAC-адрес", max_length=17, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
@@ -95,10 +92,26 @@ class Host(models.Model):
     class Meta:
         verbose_name = "Хост"
         verbose_name_plural = "Хосты"
-        ordering = ["ip_address"]
+        ordering = ["domain_name"]
 
     def __str__(self):
-        return self.domain_name or self.ip_address
+        return self.domain_name or f"Хост #{self.pk}"
+
+    @property
+    def primary_ip(self):
+        """
+        Основной IP-адрес хоста:
+          1. Отмеченный is_primary=True;
+          2. Если такого нет — первый по алфавиту.
+        Возвращает строку или None.
+        """
+        ips = list(self.ip_addresses.all())
+        if not ips:
+            return None
+        for ip in ips:
+            if ip.is_primary:
+                return ip.address
+        return ips[0].address
 
     @property
     def supports_teamviewer(self):
@@ -143,6 +156,37 @@ class Host(models.Model):
             f"\\{login}"
             f"\\Рабочий стол"
         )
+
+
+class IPAddress(models.Model):
+    """IP-адрес, принадлежащий хосту. У хоста может быть несколько адресов."""
+
+    host = models.ForeignKey(
+        Host,
+        on_delete=models.CASCADE,
+        related_name="ip_addresses",
+        verbose_name="Хост",
+    )
+    address = models.GenericIPAddressField("IP-адрес", unique=True)
+    is_primary = models.BooleanField("Основной", default=False)
+    comment = models.CharField("Комментарий", max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "IP-адрес"
+        verbose_name_plural = "IP-адреса"
+        ordering = ["-is_primary", "address"]
+
+    def __str__(self):
+        return self.address
+
+    def save(self, *args, **kwargs):
+        # Автоматически снимаем is_primary у остальных IP этого хоста,
+        # чтобы «основным» был только один.
+        super().save(*args, **kwargs)
+        if self.is_primary:
+            IPAddress.objects.filter(
+                host=self.host, is_primary=True
+            ).exclude(pk=self.pk).update(is_primary=False)
 
 
 class HardwareInfo(models.Model):

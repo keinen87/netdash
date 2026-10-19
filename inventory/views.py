@@ -7,7 +7,6 @@ from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-from urllib.parse import quote
 
 from . import ldap_client
 from .models import (
@@ -15,6 +14,7 @@ from .models import (
     HardwareInfo,
     History,
     Host,
+    IPAddress,
     Person,
     SIM,
     Software,
@@ -24,7 +24,7 @@ from .models import (
 HOST_SORT_FIELDS = {
     "fio": "first_user_name",
     "domain": "domain_name",
-    "ip": "ip_address",
+    "ip": "first_ip_address",
     "phone": "first_user_phone",
 }
 
@@ -34,7 +34,7 @@ def dashboard(request):
     sort = request.GET.get("sort", "").strip()
     direction = request.GET.get("dir", "asc").strip()
 
-    hosts = Host.objects.all().prefetch_related("users", "softwares")
+    hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
     persons = Person.objects.none()
     accounts = Account.objects.none()
     sims = SIM.objects.none()
@@ -46,9 +46,10 @@ def dashboard(request):
             Q(description__icontains=query)
             | Q(kind__icontains=query)
             | Q(domain_name__icontains=query)
-            | Q(ip_address__icontains=query)
             | Q(mac_address__icontains=query)
             | Q(comment__icontains=query)
+            | Q(ip_addresses__address__icontains=query)
+            | Q(ip_addresses__comment__icontains=query)
             | Q(users__full_name__icontains=query)
             | Q(users__position__icontains=query)
             | Q(users__phone_work__icontains=query)
@@ -84,7 +85,7 @@ def dashboard(request):
             | Q(description__icontains=query)
             | Q(comment__icontains=query)
             | Q(hosts__domain_name__icontains=query)
-            | Q(hosts__ip_address__icontains=query)
+            | Q(hosts__ip_addresses__address__icontains=query)
             | Q(accounts__login__icontains=query)
             | Q(accounts__comment__icontains=query)
             | Q(sims__full_number__icontains=query)
@@ -98,7 +99,7 @@ def dashboard(request):
             | Q(person__full_name__icontains=query)
             | Q(person__position__icontains=query)
             | Q(host__domain_name__icontains=query)
-            | Q(host__ip_address__icontains=query)
+            | Q(host__ip_addresses__address__icontains=query)
         ).distinct()
 
         sims = SIM.objects.filter(
@@ -109,13 +110,13 @@ def dashboard(request):
             | Q(comment__icontains=query)
             | Q(person__full_name__icontains=query)
             | Q(host__domain_name__icontains=query)
-            | Q(host__ip_address__icontains=query)
+            | Q(host__ip_addresses__address__icontains=query)
         ).distinct()
 
         history = History.objects.filter(
             Q(fact__icontains=query)
             | Q(host__domain_name__icontains=query)
-            | Q(host__ip_address__icontains=query)
+            | Q(host__ip_addresses__address__icontains=query)
             | Q(person__full_name__icontains=query)
         ).distinct()
 
@@ -124,17 +125,25 @@ def dashboard(request):
             | Q(version__icontains=query)
             | Q(comment__icontains=query)
             | Q(hosts__domain_name__icontains=query)
-            | Q(hosts__ip_address__icontains=query)
+            | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
+    # Аннотируем «первого» пользователя (для сортировки по ФИО/телефону)
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
         .order_by("full_name")
     )
+    # Аннотируем основной IP — для сортировки по адресу
+    first_ip = (
+        IPAddress.objects
+        .filter(host=OuterRef("pk"))
+        .order_by("-is_primary", "address")
+    )
     hosts = hosts.annotate(
         first_user_name=Subquery(first_user.values("full_name")[:1]),
         first_user_phone=Subquery(first_user.values("phone_work")[:1]),
+        first_ip_address=Subquery(first_ip.values("address")[:1]),
     )
 
     if sort in HOST_SORT_FIELDS:
@@ -158,7 +167,10 @@ def dashboard(request):
 
 
 def host_detail(request, pk):
-    host = get_object_or_404(Host, pk=pk)
+    host = get_object_or_404(
+        Host.objects.prefetch_related("ip_addresses", "users", "softwares"),
+        pk=pk,
+    )
 
     can_edit = request.user.is_authenticated and request.user.is_staff
 
@@ -178,41 +190,16 @@ def host_detail(request, pk):
 
     hardware = HardwareInfo.objects.filter(host=host).first()
 
-    # ---------- Путь к рабочему столу ----------
-    desktop_path = ""
-    desktop_url = ""
-    desktop_login = ""
-
-    if host.supports_desktop_share and (host.domain_name or host.ip_address):
-        first_user = host.users.first()
-        if first_user:
-            # 1) аккаунт этого пользователя, привязанный к этому хосту
-            acc = first_user.accounts.filter(host=host).first()
-            # 2) если нет — любой его аккаунт
-            if acc is None:
-                acc = first_user.accounts.first()
-            if acc and acc.login:
-                desktop_login = acc.login
-                hostname = host.domain_name or host.ip_address
-                # UNC-путь для копирования (реальные имена папок: Users, Desktop)
-                desktop_path = f"\\\\{hostname}\\C$\\Users\\{acc.login}\\Desktop"
-                # file://-URL для кнопки «Открыть» (логин URL-кодируется)
-                desktop_url = (
-                    f"file://{hostname}/C$/Users/{quote(acc.login, safe='')}/Desktop"
-                )
-
     context = {
         "host": host,
         "hardware": hardware,
         "users": host.users.all(),
+        "ip_addresses": host.ip_addresses.all(),
         "accounts": host.accounts.select_related("person").all(),
         "sims": host.sims.select_related("person").all(),
         "softwares": host.softwares.all(),
         "history": host.history.all(),
         "can_edit": can_edit,
-        "desktop_path": desktop_path,
-        "desktop_url": desktop_url,
-        "desktop_login": desktop_login,
     }
     return render(request, "inventory/host_detail.html", context)
 
@@ -226,7 +213,13 @@ def host_ping(request, pk):
         )
 
     host = get_object_or_404(Host, pk=pk)
-    ip = host.ip_address
+    ip = host.primary_ip
+
+    if not ip:
+        return JsonResponse(
+            {"ok": False, "error": "У хоста не задан IP-адрес."},
+            status=400,
+        )
 
     try:
         ipaddress.ip_address(ip)
@@ -268,6 +261,7 @@ def host_ping(request, pk):
 
 
 def ldap_search_view(request):
+    """Поиск в LDAP-каталоге. Доступ — только администраторам."""
     if not (request.user.is_authenticated and request.user.is_staff):
         raise PermissionDenied("Поиск в каталоге доступен только администратору.")
 
