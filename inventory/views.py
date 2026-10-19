@@ -3,6 +3,7 @@ import platform
 import subprocess
 
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -28,11 +29,38 @@ HOST_SORT_FIELDS = {
     "phone": "first_user_phone",
 }
 
+HOSTS_PER_PAGE = 25
+
+
+def _build_page_range(current, total, window=2):
+    """
+    Возвращает список номеров страниц для навигатора.
+    None в списке означает «пропуск» (многоточие).
+    """
+    if total <= 1:
+        return [1]
+
+    pages = {1, total}
+    low = max(1, current - window)
+    high = min(total, current + window)
+    for n in range(low, high + 1):
+        pages.add(n)
+
+    result = []
+    prev = None
+    for n in sorted(pages):
+        if prev is not None and n - prev > 1:
+            result.append(None)
+        result.append(n)
+        prev = n
+    return result
+
 
 def dashboard(request):
     query = request.GET.get("q", "").strip()
     sort = request.GET.get("sort", "").strip()
     direction = request.GET.get("dir", "asc").strip()
+    page_number = request.GET.get("page", "1").strip()
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
     persons = Person.objects.none()
@@ -128,13 +156,12 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
-    # Аннотируем «первого» пользователя (для сортировки по ФИО/телефону)
+    # Аннотации для сортировки — считаются один раз, вместе с основным запросом
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
         .order_by("full_name")
     )
-    # Аннотируем основной IP — для сортировки по адресу
     first_ip = (
         IPAddress.objects
         .filter(host=OuterRef("pk"))
@@ -152,11 +179,32 @@ def dashboard(request):
             field = "-" + field
         hosts = hosts.order_by(field)
 
+    # ---------- ПАГИНАЦИЯ ----------
+    paginator = Paginator(hosts, HOSTS_PER_PAGE)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # GET-параметры без page — чтобы строить ссылки на страницы,
+    # сохраняя q, sort, dir
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+    query_suffix = query_params.urlencode()
+    if query_suffix:
+        query_suffix += "&"
+
     context = {
         "query": query,
         "sort": sort,
         "direction": direction,
-        "hosts": hosts,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "page_range": _build_page_range(page_obj.number, paginator.num_pages),
+        "query_suffix": query_suffix,
+        "hosts": page_obj,
         "persons": persons,
         "accounts": accounts,
         "sims": sims,

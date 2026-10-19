@@ -86,6 +86,60 @@
     tr.row-link:hover td:first-child::before { opacity: 1; }
     tr.row-link:active td { background: #d8e4fb; }
 
+    /* ---------- Пагинация ---------- */
+    .pagination {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin: 1.5rem 0 1rem;
+        font-size: 15px;
+    }
+    .pagination .info {
+        color: #777;
+        margin-right: 12px;
+        font-size: 14px;
+    }
+    .pagination a,
+    .pagination .current,
+    .pagination .disabled,
+    .pagination .ellipsis {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-family: inherit;
+    }
+    .pagination a {
+        color: #2d6cdf;
+        border: 1px solid #d0d7e2;
+        background: #f7f9fc;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .pagination a:hover { background: #eaf1ff; border-color: #b9cdf5; }
+    .pagination .current {
+        background: #2d6cdf;
+        color: white;
+        border: 1px solid #2d6cdf;
+        font-weight: 600;
+    }
+    .pagination .disabled {
+        color: #c0c0c0;
+        border: 1px solid #ebebeb;
+        background: #fafafa;
+        cursor: not-allowed;
+    }
+    .pagination .ellipsis {
+        color: #bbb;
+        border: none;
+        background: none;
+    }
+
     /* ---------- Нижняя ссылка на LDAP-поиск ---------- */
     .bottom-nav {
         margin-top: 3rem;
@@ -132,12 +186,12 @@
     {% endif %}
 
     {# ---------- ХОСТЫ ---------- #}
-    <h2>Хосты {% if query %}(найдено: {{ hosts|length }}){% else %}({{ hosts|length }}){% endif %}</h2>
+    <h2>Хосты {% if query %}(найдено: {{ paginator.count }}){% else %}({{ paginator.count }}){% endif %}</h2>
     {% if hosts %}
         <table>
             <tr>
                 <th class="sortable {% if sort == 'fio' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=fio&amp;dir={% if sort == 'fio' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=fio&amp;dir={% if sort == 'fio' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         ФИО
                         {% if sort == 'fio' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -147,7 +201,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'domain' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         Доменное имя
                         {% if sort == 'domain' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -157,7 +211,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'ip' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=ip&amp;dir={% if sort == 'ip' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=ip&amp;dir={% if sort == 'ip' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         IP-адрес
                         {% if sort == 'ip' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -167,7 +221,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'phone' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query }}&amp;{% endif %}sort=phone&amp;dir={% if sort == 'phone' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=phone&amp;dir={% if sort == 'phone' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         Телефон
                         {% if sort == 'phone' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -198,6 +252,41 @@
             </tr>
             {% endfor %}
         </table>
+
+        {# ---------- ПАГИНАЦИЯ ---------- #}
+        {% if paginator.num_pages > 1 %}
+            <nav class="pagination" aria-label="Страницы">
+                <span class="info">
+                    Страница {{ page_obj.number }} из {{ paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_previous %}
+                    <a href="?{{ query_suffix }}page=1" title="Первая страница">«</a>
+                    <a href="?{{ query_suffix }}page={{ page_obj.previous_page_number }}" title="Предыдущая">‹</a>
+                {% else %}
+                    <span class="disabled">«</span>
+                    <span class="disabled">‹</span>
+                {% endif %}
+
+                {% for num in page_range %}
+                    {% if num is None %}
+                        <span class="ellipsis">…</span>
+                    {% elif num == page_obj.number %}
+                        <span class="current">{{ num }}</span>
+                    {% else %}
+                        <a href="?{{ query_suffix }}page={{ num }}">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?{{ query_suffix }}page={{ page_obj.next_page_number }}" title="Следующая">›</a>
+                    <a href="?{{ query_suffix }}page={{ paginator.num_pages }}" title="Последняя страница">»</a>
+                {% else %}
+                    <span class="disabled">›</span>
+                    <span class="disabled">»</span>
+                {% endif %}
+            </nav>
+        {% endif %}
     {% else %}
         <p class="empty">Пока ничего нет.</p>
     {% endif %}
