@@ -44,6 +44,7 @@ class Host(models.Model):
     """Любое устройство в сети, которому присвоен IP-адрес."""
 
     KIND_PC = "pc"
+    KIND_VPC = "vpc"
     KIND_MINIPC = "minipc"
     KIND_LAPTOP = "laptop"
     KIND_CAMERA = "camera"
@@ -56,6 +57,7 @@ class Host(models.Model):
 
     KIND_CHOICES = [
         (KIND_PC, "Настольный ПК"),
+        (KIND_VPC, "Виртуальный ПК (Windows)"),
         (KIND_MINIPC, "Мини ПК"),
         (KIND_LAPTOP, "Ноутбук"),
         (KIND_CAMERA, "IP-камера"),
@@ -67,8 +69,11 @@ class Host(models.Model):
         (KIND_OTHER, "Другое"),
     ]
 
-    TEAMVIEWER_KINDS = {KIND_PC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
-    DESKTOP_ACCESS_KINDS = {KIND_PC}
+    # Виды хостов, на которых может быть установлен TeamViewer
+    TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
+
+    # Виды хостов, у которых есть папка «Рабочий стол» в профиле пользователя
+    DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
