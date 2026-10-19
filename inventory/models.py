@@ -69,10 +69,7 @@ class Host(models.Model):
         (KIND_OTHER, "Другое"),
     ]
 
-    # Виды хостов, на которых может быть установлен TeamViewer
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
-
-    # Виды хостов, у которых есть папка «Рабочий стол» в профиле пользователя
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
 
     description = models.CharField("Описание", max_length=255, blank=True)
@@ -202,6 +199,7 @@ class Account(models.Model):
     KIND_DOMAIN = "domain"
     KIND_EMAIL = "email"
     KIND_TRASSIR = "trassir"
+    KIND_SCADA = "scada"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -211,6 +209,7 @@ class Account(models.Model):
         (KIND_DOMAIN, "Домен"),
         (KIND_EMAIL, "Email"),
         (KIND_TRASSIR, "Видеосервер Trassir"),
+        (KIND_SCADA, "SCADA"),
         (KIND_OTHER, "Другое"),
     ]
 
