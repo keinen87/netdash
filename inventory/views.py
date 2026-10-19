@@ -7,6 +7,7 @@ from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from urllib.parse import quote
 
 from . import ldap_client
 from .models import (
@@ -177,6 +178,29 @@ def host_detail(request, pk):
 
     hardware = HardwareInfo.objects.filter(host=host).first()
 
+    # ---------- Путь к рабочему столу ----------
+    desktop_path = ""
+    desktop_url = ""
+    desktop_login = ""
+
+    if host.supports_desktop_share and (host.domain_name or host.ip_address):
+        first_user = host.users.first()
+        if first_user:
+            # 1) аккаунт этого пользователя, привязанный к этому хосту
+            acc = first_user.accounts.filter(host=host).first()
+            # 2) если нет — любой его аккаунт
+            if acc is None:
+                acc = first_user.accounts.first()
+            if acc and acc.login:
+                desktop_login = acc.login
+                hostname = host.domain_name or host.ip_address
+                # UNC-путь для копирования (реальные имена папок: Users, Desktop)
+                desktop_path = f"\\\\{hostname}\\C$\\Users\\{acc.login}\\Desktop"
+                # file://-URL для кнопки «Открыть» (логин URL-кодируется)
+                desktop_url = (
+                    f"file://{hostname}/C$/Users/{quote(acc.login, safe='')}/Desktop"
+                )
+
     context = {
         "host": host,
         "hardware": hardware,
@@ -186,6 +210,9 @@ def host_detail(request, pk):
         "softwares": host.softwares.all(),
         "history": host.history.all(),
         "can_edit": can_edit,
+        "desktop_path": desktop_path,
+        "desktop_url": desktop_url,
+        "desktop_login": desktop_login,
     }
     return render(request, "inventory/host_detail.html", context)
 

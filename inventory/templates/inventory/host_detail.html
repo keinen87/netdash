@@ -207,7 +207,7 @@
     /* ---------- Кнопка TeamViewer ---------- */
     .tv-btn {
         display: block;
-        margin-top: 12px;
+        margin-top: 0;
         padding: 8px 16px;
         font-size: 15px;
         border: none;
@@ -222,6 +222,26 @@
     }
     .tv-btn:hover { background: #0b76c4; }
     .tv-btn:active { background: #095e9e; }
+
+    /* ---------- Кнопка «Открыть рабочий стол» ---------- */
+    .desktop-btn {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        background: #e59400;
+        color: white;
+        cursor: pointer;
+        text-align: center;
+        box-sizing: border-box;
+        transition: background 0.15s;
+        font-family: inherit;
+    }
+    .desktop-btn:hover { background: #c67f00; }
+    .desktop-btn:active { background: #a86b00; }
 {% endblock %}
 
 {% block content %}
@@ -229,11 +249,12 @@
 
     <div class="detail-layout">
 
-        {# ================= ЛЕВАЯ КОЛОНКА — ПРОВЕРКА СВЯЗИ ================= #}
+        {# ================= ЛЕВАЯ КОЛОНКА ================= #}
         <aside class="detail-left">
+
+            {# ---------- ПРОВЕРКА СВЯЗИ ---------- #}
             <div class="card">
                 <h2>Проверка связи</h2>
-
                 {% if can_edit %}
                     <button
                         id="ping-btn"
@@ -242,14 +263,6 @@
                         data-url="{% url 'inventory:host_ping' host.pk %}"
                     >Проверить пинг</button>
                     <pre id="ping-output" class="ping-output" hidden></pre>
-
-                    {% if host.ip_address and host.supports_teamviewer %}
-                        <a
-                            class="tv-btn"
-                            href="teamviewer10://control?device={{ host.ip_address }}"
-                            title="Подключиться по TeamViewer к {{ host.ip_address }}"
-                        >Подключиться по TeamViewer</a>
-                    {% endif %}
                 {% else %}
                     <p class="empty">
                         Проверка связи доступна только администратору.
@@ -257,6 +270,34 @@
                     </p>
                 {% endif %}
             </div>
+
+            {# ---------- УДАЛЁННЫЙ ДОСТУП ---------- #}
+            {% if can_edit %}
+                {% if host.supports_teamviewer or host.supports_desktop_share %}
+                <div class="card">
+                    <h2>Удалённый доступ</h2>
+
+                    {% if host.supports_teamviewer and host.ip_address %}
+                        <a
+                            class="tv-btn"
+                            href="teamviewer10://control?device={{ host.ip_address }}"
+                            title="Подключиться по TeamViewer к {{ host.ip_address }}"
+                        >Подключиться по TeamViewer</a>
+                    {% endif %}
+
+                    {% if host.supports_desktop_share %}
+                        <button
+                            type="button"
+                            class="desktop-btn"
+                            id="open-desktop-btn"
+                            data-unc="{{ host.desktop_unc_path }}"
+                            title="Скопировать путь: {{ host.desktop_unc_path }}"
+                        >Открыть рабочий стол</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endif %}
+
         </aside>
 
         {# ================= ЦЕНТРАЛЬНАЯ КОЛОНКА ================= #}
@@ -490,7 +531,7 @@
 
     </div>
 
-    {# ---------- JavaScript: ping + copy-to-clipboard ---------- #}
+    {# ---------- JavaScript: ping + copy + open desktop (копирование пути) ---------- #}
     <script>
     (function () {
         /* ---------- PING ---------- */
@@ -581,6 +622,49 @@
                 }
             });
         });
+
+        /* ---------- OPEN DESKTOP (копирование пути) ---------- */
+        var deskBtn = document.getElementById("open-desktop-btn");
+        if (deskBtn) {
+            deskBtn.addEventListener("click", function () {
+                var unc = deskBtn.dataset.unc || "";
+                var original = "Открыть рабочий стол";
+
+                function feedback(text) {
+                    deskBtn.textContent = text;
+                    setTimeout(function () { deskBtn.textContent = original; }, 5000);
+                }
+
+                if (!unc) {
+                    feedback("Путь недоступен");
+                    return;
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(unc)
+                        .then(function () {
+                            feedback("Путь скопирован — Win+E, Ctrl+L, Ctrl+V");
+                        })
+                        .catch(function () {
+                            fallbackCopy(unc, function (ok) {
+                                if (ok) {
+                                    feedback("Путь скопирован — Win+E, Ctrl+L, Ctrl+V");
+                                } else {
+                                    feedback("Не удалось скопировать путь");
+                                }
+                            });
+                        });
+                } else {
+                    fallbackCopy(unc, function (ok) {
+                        if (ok) {
+                            feedback("Путь скопирован — Win+E, Ctrl+L, Ctrl+V");
+                        } else {
+                            feedback("Не удалось скопировать путь");
+                        }
+                    });
+                }
+            });
+        }
     })();
     </script>
 {% endblock %}

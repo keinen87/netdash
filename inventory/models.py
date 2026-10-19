@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from django.db import models
 from django.utils import timezone
 
@@ -65,8 +67,8 @@ class Host(models.Model):
         (KIND_OTHER, "Другое"),
     ]
 
-    # Виды хостов, на которых может быть установлен TeamViewer
     TEAMVIEWER_KINDS = {KIND_PC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
+    DESKTOP_ACCESS_KINDS = {KIND_PC}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
@@ -100,6 +102,45 @@ class Host(models.Model):
     def supports_teamviewer(self):
         """Может ли на этом хосте быть TeamViewer."""
         return self.kind in self.TEAMVIEWER_KINDS
+
+    def _desktop_share_data(self):
+        """Внутренний хелпер: (domain_name, login) или (None, None)."""
+        if self.kind not in self.DESKTOP_ACCESS_KINDS:
+            return None, None
+        if not self.domain_name:
+            return None, None
+
+        user = self.users.first()
+        if not user:
+            return None, None
+
+        account = (
+            user.accounts.filter(kind=Account.KIND_DOMAIN).first()
+            or user.accounts.first()
+        )
+        if not account or not account.login:
+            return None, None
+
+        return self.domain_name, account.login
+
+    @property
+    def supports_desktop_share(self):
+        """Можно ли построить UNC-путь к папке «Рабочий стол» пользователя."""
+        domain, login = self._desktop_share_data()
+        return domain is not None and login is not None
+
+    @property
+    def desktop_unc_path(self):
+        """UNC-путь к папке «Рабочий стол»."""
+        domain, login = self._desktop_share_data()
+        if domain is None or login is None:
+            return None
+        return (
+            f"\\\\{domain}"
+            f"\\C$\\Пользователи"
+            f"\\{login}"
+            f"\\Рабочий стол"
+        )
 
 
 class HardwareInfo(models.Model):
