@@ -49,6 +49,7 @@ class Host(models.Model):
     KIND_NVR = "nvr"
     KIND_PLC = "plc"
     KIND_HMI = "hmi"
+    KIND_BRIDGE = "bridge"
     KIND_ROUTER = "router"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
@@ -63,6 +64,7 @@ class Host(models.Model):
         (KIND_NVR, "IP-видеорегистратор"),
         (KIND_PLC, "Промышленный контроллер"),
         (KIND_HMI, "HMI панель"),
+        (KIND_BRIDGE, "Беспроводной мост"),
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
