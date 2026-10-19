@@ -46,10 +46,9 @@ class Host(models.Model):
     KIND_MINIPC = "minipc"
     KIND_LAPTOP = "laptop"
     KIND_CAMERA = "camera"
+    KIND_BRIDGE = "bridge"
     KIND_NVR = "nvr"
     KIND_PLC = "plc"
-    KIND_HMI = "hmi"
-    KIND_BRIDGE = "bridge"
     KIND_ROUTER = "router"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
@@ -61,10 +60,9 @@ class Host(models.Model):
         (KIND_MINIPC, "Мини ПК"),
         (KIND_LAPTOP, "Ноутбук"),
         (KIND_CAMERA, "IP-камера"),
+        (KIND_BRIDGE, "Беспроводной мост"),
         (KIND_NVR, "IP-видеорегистратор"),
         (KIND_PLC, "Промышленный контроллер"),
-        (KIND_HMI, "HMI панель"),
-        (KIND_BRIDGE, "Беспроводной мост"),
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
@@ -72,7 +70,8 @@ class Host(models.Model):
     ]
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
-    DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP}
+    DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
+    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
@@ -161,6 +160,21 @@ class Host(models.Model):
             f"\\Рабочий стол"
         )
 
+    @property
+    def supports_web_ui(self):
+        """Есть ли у этого вида хоста встроенный веб-интерфейс."""
+        return self.kind in self.WEB_UI_KINDS
+
+    @property
+    def web_ui_url(self):
+        """URL веб-интерфейса хоста. None, если не применимо или нет IP."""
+        if not self.supports_web_ui:
+            return None
+        ip = self.primary_ip
+        if not ip:
+            return None
+        return f"http://{ip}/"
+
 
 class IPAddress(models.Model):
     """IP-адрес, принадлежащий хосту. У хоста может быть несколько адресов."""
@@ -184,8 +198,6 @@ class IPAddress(models.Model):
         return self.address
 
     def save(self, *args, **kwargs):
-        # Автоматически снимаем is_primary у остальных IP этого хоста,
-        # чтобы «основным» был только один.
         super().save(*args, **kwargs)
         if self.is_primary:
             IPAddress.objects.filter(

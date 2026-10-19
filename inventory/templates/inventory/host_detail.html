@@ -267,6 +267,27 @@
     }
     .desktop-btn:hover { background: #c67f00; }
     .desktop-btn:active { background: #a86b00; }
+
+    /* ---------- Кнопка «Открыть веб-интерфейс» ---------- */
+    .webui-btn {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        background: #7b3fb5;
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        text-align: center;
+        box-sizing: border-box;
+        transition: background 0.15s;
+        font-family: inherit;
+    }
+    .webui-btn:hover { background: #66339a; }
+    .webui-btn:active { background: #52287b; }
 {% endblock %}
 
 {% block content %}
@@ -298,7 +319,7 @@
 
             {# ---------- УДАЛЁННЫЙ ДОСТУП ---------- #}
             {% if can_edit %}
-                {% if host.supports_teamviewer or host.supports_desktop_share %}
+                {% if host.supports_teamviewer or host.supports_desktop_share or host.supports_web_ui %}
                 <div class="card">
                     <h2>Удалённый доступ</h2>
 
@@ -318,6 +339,16 @@
                             data-unc="{{ host.desktop_unc_path }}"
                             title="Скопировать путь: {{ host.desktop_unc_path }}"
                         >Открыть рабочий стол</button>
+                    {% endif %}
+
+                    {% if host.supports_web_ui and host.web_ui_url %}
+                        <a
+                            class="webui-btn"
+                            href="{{ host.web_ui_url }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Открыть веб-интерфейс: {{ host.web_ui_url }}"
+                        >Открыть веб-интерфейс</a>
                     {% endif %}
                 </div>
                 {% endif %}
