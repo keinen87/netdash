@@ -3,12 +3,19 @@
 {% block title %}NetDash — Хосты{% endblock %}
 
 {% block extra_css %}
+    /* ---------- Форма поиска + фильтр по типам ---------- */
     form.search {
         display: flex;
-        gap: 8px;
+        flex-direction: column;
+        gap: 12px;
         margin: 1.5rem 0;
     }
-    form.search input[type="text"] {
+    form.search .search-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    form.search .search-row input[type="text"] {
         flex: 1;
         padding: 10px 12px;
         font-size: 16px;
@@ -16,12 +23,12 @@
         border-radius: 6px;
         background: #fff;
     }
-    form.search input[type="text"]:focus {
+    form.search .search-row input[type="text"]:focus {
         outline: none;
         border-color: #2d6cdf;
         box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
     }
-    form.search button {
+    form.search .search-row button {
         padding: 10px 18px;
         font-size: 16px;
         border: none;
@@ -30,14 +37,59 @@
         color: white;
         cursor: pointer;
     }
-    form.search button:hover { background: #1e52b5; }
-    form.search a.clear {
-        align-self: center;
+    form.search .search-row button:hover { background: #1e52b5; }
+    form.search .search-row a.clear {
         color: #888;
         text-decoration: none;
         font-size: 15px;
+        white-space: nowrap;
     }
 
+    /* Пилюли-чекбоксы для фильтра по типам */
+    .kind-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+    .kind-filters-label {
+        color: #777;
+        font-size: 14px;
+        margin-right: 4px;
+    }
+    .kind-chip {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+    }
+    .kind-chip input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .kind-chip span {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 14px;
+        border: 1px solid #d0d7e2;
+        background: #f7f9fc;
+        color: #555;
+        font-size: 13px;
+        line-height: 1.6;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .kind-chip:hover span {
+        background: #eaf1ff;
+        border-color: #b9cdf5;
+        color: #2d6cdf;
+    }
+    .kind-chip input:checked + span {
+        background: #2d6cdf;
+        color: white;
+        border-color: #2d6cdf;
+    }
+
+    /* ---------- Строки в ячейках ---------- */
     .user-line {
         margin-bottom: 4px;
         line-height: 1.35;
@@ -45,9 +97,8 @@
     }
     .user-line:last-child { margin-bottom: 0; }
 
-    /* Описание хоста вместо ФИО — серым, чтобы визуально отличалось */
     .host-desc-fallback {
-        color: #555;
+        color: #666;
     }
 
     /* ---------- Кликабельные заголовки таблицы ---------- */
@@ -145,6 +196,17 @@
         background: none;
     }
 
+    /* ---------- Сводка фильтра ---------- */
+    .filter-summary {
+        color: #555;
+        font-size: 15px;
+        margin: 0 0 1rem;
+        padding: 8px 12px;
+        background: #eef4ff;
+        border-left: 3px solid #2d6cdf;
+        border-radius: 4px;
+    }
+
     /* ---------- Нижняя ссылка на LDAP-поиск ---------- */
     .bottom-nav {
         margin-top: 3rem;
@@ -173,30 +235,57 @@
 
 {% block content %}
     <form class="search" method="get" action="">
-        <input
-            type="text"
-            name="q"
-            value="{{ query }}"
-            placeholder="Поиск по хостам, людям, аккаунтам, SIM, истории..."
-            autofocus
-        >
-        <button type="submit">Найти</button>
-        {% if query %}
-            <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
-        {% endif %}
+        <div class="search-row">
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Поиск по хостам, людям, аккаунтам, SIM, истории..."
+                autofocus
+            >
+            <button type="submit">Найти</button>
+            {% if query or kinds_selected %}
+                <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
+            {% endif %}
+        </div>
+
+        <div class="kind-filters">
+            <span class="kind-filters-label">Типы хостов:</span>
+            {% for value, label in kind_choices %}
+                <label class="kind-chip">
+                    <input
+                        type="checkbox"
+                        name="kind"
+                        value="{{ value }}"
+                        {% if value in kinds_selected %}checked{% endif %}
+                    >
+                    <span>{{ label }}</span>
+                </label>
+            {% endfor %}
+        </div>
     </form>
 
-    {% if query %}
-        <p>Результаты поиска по запросу: <strong>«{{ query }}»</strong></p>
+    {% if query or kinds_selected %}
+        <p class="filter-summary">
+            {% if query %}
+                Результаты поиска по запросу <strong>«{{ query }}»</strong>
+            {% endif %}
+            {% if query and kinds_selected %}
+                ·
+            {% endif %}
+            {% if kinds_selected %}
+                Выбрано типов хостов: <strong>{{ kinds_selected|length }}</strong>
+            {% endif %}
+        </p>
     {% endif %}
 
     {# ---------- ХОСТЫ ---------- #}
-    <h2>Хосты {% if query %}(найдено: {{ paginator.count }}){% else %}({{ paginator.count }}){% endif %}</h2>
+    <h2>Хосты ({{ paginator.count }})</h2>
     {% if hosts %}
         <table>
             <tr>
                 <th class="sortable {% if sort == 'fio' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=fio&amp;dir={% if sort == 'fio' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{{ sort_suffix }}sort=fio&amp;dir={% if sort == 'fio' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         ФИО
                         {% if sort == 'fio' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -206,7 +295,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'domain' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{{ sort_suffix }}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         Доменное имя
                         {% if sort == 'domain' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -216,7 +305,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'ip' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=ip&amp;dir={% if sort == 'ip' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{{ sort_suffix }}sort=ip&amp;dir={% if sort == 'ip' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         IP-адрес
                         {% if sort == 'ip' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -226,7 +315,7 @@
                     </a>
                 </th>
                 <th class="sortable {% if sort == 'phone' %}active{% endif %}">
-                    <a href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort=phone&amp;dir={% if sort == 'phone' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                    <a href="?{{ sort_suffix }}sort=phone&amp;dir={% if sort == 'phone' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         Телефон
                         {% if sort == 'phone' %}
                             <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
@@ -398,6 +487,7 @@
     </div>
 
     <script>
+        // Клик по строке — переход на карточку
         document.querySelectorAll("tr.row-link").forEach(function (row) {
             row.addEventListener("click", function (event) {
                 if (event.target.closest("a, button, input, textarea, select")) return;
@@ -406,5 +496,23 @@
                 if (href) window.location.href = href;
             });
         });
+
+        // Автосабмит при клике на чекбокс-пилюлю
+        var searchForm = document.querySelector("form.search");
+        if (searchForm) {
+            var submitTimer;
+            searchForm.querySelectorAll('.kind-chip input[type="checkbox"]').forEach(function (cb) {
+                cb.addEventListener("change", function () {
+                    clearTimeout(submitTimer);
+                    submitTimer = setTimeout(function () {
+                        searchForm.submit();
+                    }, 300);
+                });
+            });
+            // Отменяем таймер при ручной отправке
+            searchForm.addEventListener("submit", function () {
+                clearTimeout(submitTimer);
+            });
+        }
     </script>
 {% endblock %}

@@ -33,10 +33,6 @@ HOSTS_PER_PAGE = 25
 
 
 def _build_page_range(current, total, window=2):
-    """
-    Возвращает список номеров страниц для навигатора.
-    None в списке означает «пропуск» (многоточие).
-    """
     if total <= 1:
         return [1]
 
@@ -61,6 +57,7 @@ def dashboard(request):
     sort = request.GET.get("sort", "").strip()
     direction = request.GET.get("dir", "asc").strip()
     page_number = request.GET.get("page", "1").strip()
+    kinds_selected = request.GET.getlist("kind")
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
     persons = Person.objects.none()
@@ -68,6 +65,10 @@ def dashboard(request):
     sims = SIM.objects.none()
     history = History.objects.none()
     softwares = Software.objects.none()
+
+    # Фильтр по типам — применяется независимо от текстового поиска
+    if kinds_selected:
+        hosts = hosts.filter(kind__in=kinds_selected)
 
     if query:
         hosts = hosts.filter(
@@ -156,7 +157,6 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
-    # Аннотации для сортировки — считаются один раз, вместе с основным запросом
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
@@ -179,7 +179,6 @@ def dashboard(request):
             field = "-" + field
         hosts = hosts.order_by(field)
 
-    # ---------- ПАГИНАЦИЯ ----------
     paginator = Paginator(hosts, HOSTS_PER_PAGE)
     try:
         page_obj = paginator.page(page_number)
@@ -188,22 +187,33 @@ def dashboard(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    # GET-параметры без page — чтобы строить ссылки на страницы,
-    # сохраняя q, sort, dir
+    # Все GET-параметры, кроме page — для ссылок пагинации
     query_params = request.GET.copy()
     query_params.pop("page", None)
     query_suffix = query_params.urlencode()
     if query_suffix:
         query_suffix += "&"
 
+    # Все GET-параметры, кроме page, sort, dir — для ссылок сортировки
+    sort_params = request.GET.copy()
+    sort_params.pop("page", None)
+    sort_params.pop("sort", None)
+    sort_params.pop("dir", None)
+    sort_suffix = sort_params.urlencode()
+    if sort_suffix:
+        sort_suffix += "&"
+
     context = {
         "query": query,
         "sort": sort,
         "direction": direction,
+        "kinds_selected": kinds_selected,
+        "kind_choices": Host.KIND_CHOICES,
         "page_obj": page_obj,
         "paginator": paginator,
         "page_range": _build_page_range(page_obj.number, paginator.num_pages),
         "query_suffix": query_suffix,
+        "sort_suffix": sort_suffix,
         "hosts": page_obj,
         "persons": persons,
         "accounts": accounts,
@@ -238,6 +248,19 @@ def host_detail(request, pk):
 
     hardware = HardwareInfo.objects.filter(host=host).first()
 
+    web_account = host.accounts.filter(kind=Account.KIND_HOST).first()
+    base_web_url = host.web_ui_url
+    web_ui_url = base_web_url
+    web_ui_autologin = False
+
+    if base_web_url and web_account and web_account.login:
+        autologin = host.get_web_ui_autologin_url(
+            web_account.login, web_account.password or ""
+        )
+        if autologin:
+            web_ui_url = autologin
+            web_ui_autologin = True
+
     context = {
         "host": host,
         "hardware": hardware,
@@ -248,6 +271,9 @@ def host_detail(request, pk):
         "softwares": host.softwares.all(),
         "history": host.history.all(),
         "can_edit": can_edit,
+        "web_account": web_account,
+        "web_ui_url": web_ui_url,
+        "web_ui_autologin": web_ui_autologin,
     }
     return render(request, "inventory/host_detail.html", context)
 
@@ -309,7 +335,6 @@ def host_ping(request, pk):
 
 
 def ldap_search_view(request):
-    """Поиск в LDAP-каталоге. Доступ — только администраторам."""
     if not (request.user.is_authenticated and request.user.is_staff):
         raise PermissionDenied("Поиск в каталоге доступен только администратору.")
 
