@@ -476,7 +476,18 @@
                                     aria-label="Скопировать доменное имя"></button>
                         {% endif %}
                     </dd>
-
+                    {% if host.supports_ssid %}
+                        <dt>SSID</dt>
+                        <dd>
+                            {{ host.ssid|default:"—" }}
+                            {% if host.ssid %}
+                                <button class="copy-btn" type="button"
+                                        data-copy="{{ host.ssid }}"
+                                        title="Скопировать SSID"
+                                        aria-label="Скопировать SSID"></button>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
                     <dt>MAC-адрес</dt>
                     <dd class="mono">
                         {{ host.mac_address|default:"—" }}

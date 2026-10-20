@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from django.db import models
 from django.utils import timezone
 
@@ -49,7 +51,6 @@ class Host(models.Model):
     KIND_BRIDGE = "bridge"
     KIND_NVR = "nvr"
     KIND_PLC = "plc"
-    KIND_HMI = "hmi"
     KIND_ROUTER = "router"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
@@ -64,7 +65,6 @@ class Host(models.Model):
         (KIND_BRIDGE, "Беспроводной мост"),
         (KIND_NVR, "IP-видеорегистратор"),
         (KIND_PLC, "Промышленный контроллер"),
-        (KIND_HMI, "HMI панель"),
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
@@ -74,11 +74,13 @@ class Host(models.Model):
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
     WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE}
+    SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     domain_name = models.CharField("Доменное имя", max_length=255, blank=True)
     mac_address = models.CharField("MAC-адрес", max_length=17, blank=True)
+    ssid = models.CharField("SSID", max_length=64, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
     users = models.ManyToManyField(
@@ -104,12 +106,6 @@ class Host(models.Model):
 
     @property
     def primary_ip(self):
-        """
-        Основной IP-адрес хоста:
-          1. Отмеченный is_primary=True;
-          2. Если такого нет — первый по алфавиту.
-        Возвращает строку или None.
-        """
         ips = list(self.ip_addresses.all())
         if not ips:
             return None
@@ -120,11 +116,14 @@ class Host(models.Model):
 
     @property
     def supports_teamviewer(self):
-        """Может ли на этом хосте быть TeamViewer."""
         return self.kind in self.TEAMVIEWER_KINDS
 
+    @property
+    def supports_ssid(self):
+        """Активно ли поле SSID для этого вида хоста."""
+        return self.kind in self.SSID_KINDS
+
     def _desktop_share_data(self):
-        """Внутренний хелпер: (domain_name, login) или (None, None)."""
         if self.kind not in self.DESKTOP_ACCESS_KINDS:
             return None, None
         if not self.domain_name:
@@ -145,13 +144,11 @@ class Host(models.Model):
 
     @property
     def supports_desktop_share(self):
-        """Можно ли построить UNC-путь к папке «Рабочий стол» пользователя."""
         domain, login = self._desktop_share_data()
         return domain is not None and login is not None
 
     @property
     def desktop_unc_path(self):
-        """UNC-путь к папке «Рабочий стол»."""
         domain, login = self._desktop_share_data()
         if domain is None or login is None:
             return None
@@ -164,18 +161,37 @@ class Host(models.Model):
 
     @property
     def supports_web_ui(self):
-        """Есть ли у этого вида хоста встроенный веб-интерфейс."""
         return self.kind in self.WEB_UI_KINDS
 
     @property
     def web_ui_url(self):
-        """URL веб-интерфейса хоста. None, если не применимо или нет IP."""
         if not self.supports_web_ui:
             return None
         ip = self.primary_ip
         if not ip:
             return None
         return f"http://{ip}/"
+
+    def get_web_ui_autologin_url(self, login: str, password: str) -> str:
+        if not self.supports_web_ui:
+            return None
+        ip = self.primary_ip
+        if not ip:
+            return None
+
+        if self.kind == self.KIND_CAMERA:
+            return (
+                f"http://{ip}/dispatch.asp"
+                f"?user={quote(login)}"
+                f"&pass={quote(password)}"
+                f"&page=preview.asp"
+            )
+
+        return (
+            f"http://{ip}/"
+            f"?user={quote(login)}"
+            f"&pass={quote(password)}"
+        )
 
 
 class IPAddress(models.Model):
@@ -208,8 +224,6 @@ class IPAddress(models.Model):
 
 
 class HardwareInfo(models.Model):
-    """Аппаратная конфигурация хоста. Один хост — одна конфигурация."""
-
     STORAGE_SSD = "ssd"
     STORAGE_HDD = "hdd"
     STORAGE_NVME = "nvme"
@@ -253,8 +267,6 @@ class HardwareInfo(models.Model):
 
 
 class Account(models.Model):
-    """Учётная запись пользователя (к хосту, терминалу, облаку и т.п.)."""
-
     KIND_HOST = "host"
     KIND_TERMINAL = "terminal"
     KIND_CLOUD = "cloud"
@@ -304,8 +316,6 @@ class Account(models.Model):
 
 
 class SIM(models.Model):
-    """SIM-карта."""
-
     full_number = models.CharField("Абонентский номер", max_length=32)
     short_number = models.CharField("Короткий номер", max_length=16, blank=True)
     icc = models.CharField("ICC", max_length=32, unique=True)
@@ -338,8 +348,6 @@ class SIM(models.Model):
 
 
 class History(models.Model):
-    """Запись истории — факт о хосте или пользователе с датой/временем."""
-
     fact = models.TextField("Факт")
     created_at = models.DateTimeField("Дата и время", default=timezone.now)
 

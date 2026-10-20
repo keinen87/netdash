@@ -15,8 +15,6 @@ from .models import (
 )
 
 
-# ---------- Inline-блоки ----------
-
 class AccountInlineForPerson(admin.TabularInline):
     model = Account
     fk_name = "person"
@@ -81,8 +79,6 @@ class IPAddressInline(admin.TabularInline):
     fields = ("address", "is_primary", "comment")
 
 
-# ---------- Форма для промежуточной страницы ----------
-
 class CopyHardwareForm(forms.Form):
     source = forms.ModelChoiceField(
         queryset=Host.objects.all(),
@@ -96,8 +92,6 @@ class CopyHardwareForm(forms.Form):
         help_text="Если снять галку, хосты с уже заполненной аппараткой будут пропущены",
     )
 
-
-# ---------- Админки ----------
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
@@ -121,6 +115,7 @@ class HostAdmin(admin.ModelAdmin):
         "description",
         "domain_name",
         "mac_address",
+        "ssid",
         "ip_addresses__address",
         "hardware__manufacturer",
         "hardware__cpu",
@@ -135,6 +130,9 @@ class HostAdmin(admin.ModelAdmin):
         HistoryInlineForHost,
     ]
     actions = ["copy_hardware_from"]
+
+    class Media:
+        js = ("inventory/js/host_kind_toggle.js",)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
