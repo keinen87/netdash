@@ -45,6 +45,11 @@
     }
     .user-line:last-child { margin-bottom: 0; }
 
+    /* Описание хоста вместо ФИО — серым, чтобы визуально отличалось */
+    .host-desc-fallback {
+        color: #555;
+    }
+
     /* ---------- Кликабельные заголовки таблицы ---------- */
     th.sortable a {
         color: #777;
@@ -237,7 +242,7 @@
                     {% for u in h.users.all %}
                         <div class="user-line">{{ u.full_name }}</div>
                     {% empty %}
-                        —
+                        <div class="user-line host-desc-fallback">{{ h.description|default:"—" }}</div>
                     {% endfor %}
                 </td>
                 <td>{{ h.domain_name|default:"—" }}</td>
