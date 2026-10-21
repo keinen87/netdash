@@ -54,6 +54,7 @@ class Host(models.Model):
     KIND_ROUTER = "router"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
+    KIND_PRINTER = "printer"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -68,12 +69,13 @@ class Host(models.Model):
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
+        (KIND_PRINTER, "Принтер/плоттер/МФУ"),
         (KIND_OTHER, "Другое"),
     ]
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
-    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER}
+    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER, KIND_PRINTER}
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
     description = models.CharField("Описание", max_length=255, blank=True)
@@ -175,8 +177,7 @@ class Host(models.Model):
     def get_web_ui_autologin_url(self, login: str, password: str):
         """
         URL с автоматическим входом — только для IP-камер Hikvision.
-        Для роутеров, мостов и остальных видов возвращает None —
-        кнопка откроет страницу входа, пароль вводится вручную.
+        Для остальных видов возвращает None.
         """
         if not self.supports_web_ui:
             return None
