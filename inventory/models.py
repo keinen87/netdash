@@ -73,7 +73,7 @@ class Host(models.Model):
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
-    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE}
+    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER}
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
     description = models.CharField("Описание", max_length=255, blank=True)
@@ -172,7 +172,12 @@ class Host(models.Model):
             return None
         return f"http://{ip}/"
 
-    def get_web_ui_autologin_url(self, login: str, password: str) -> str:
+    def get_web_ui_autologin_url(self, login: str, password: str):
+        """
+        URL с автоматическим входом — только для IP-камер Hikvision.
+        Для роутеров, мостов и остальных видов возвращает None —
+        кнопка откроет страницу входа, пароль вводится вручную.
+        """
         if not self.supports_web_ui:
             return None
         ip = self.primary_ip
@@ -187,11 +192,7 @@ class Host(models.Model):
                 f"&page=preview.asp"
             )
 
-        return (
-            f"http://{ip}/"
-            f"?user={quote(login)}"
-            f"&pass={quote(password)}"
-        )
+        return None
 
 
 class IPAddress(models.Model):
