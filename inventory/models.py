@@ -1,5 +1,3 @@
-from urllib.parse import quote
-
 from django.db import models
 from django.utils import timezone
 
@@ -77,7 +75,13 @@ class Host(models.Model):
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
-    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER, KIND_PRINTER, KIND_VCC_ENDPOINT}
+    WEB_UI_KINDS = {
+        KIND_CAMERA,
+        KIND_BRIDGE,
+        KIND_ROUTER,
+        KIND_PRINTER,
+        KIND_VCC_ENDPOINT,
+    }
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
     description = models.CharField("Описание", max_length=255, blank=True)
@@ -110,6 +114,7 @@ class Host(models.Model):
 
     @property
     def primary_ip(self):
+        """Основной IP-адрес: is_primary=True или первый по алфавиту."""
         ips = list(self.ip_addresses.all())
         if not ips:
             return None
@@ -124,10 +129,10 @@ class Host(models.Model):
 
     @property
     def supports_ssid(self):
-        """Активно ли поле SSID для этого вида хоста."""
         return self.kind in self.SSID_KINDS
 
     def _desktop_share_data(self):
+        """Возвращает (domain_name, login) или (None, None), если путь невозможен."""
         if self.kind not in self.DESKTOP_ACCESS_KINDS:
             return None, None
         if not self.domain_name:
@@ -175,27 +180,6 @@ class Host(models.Model):
         if not ip:
             return None
         return f"http://{ip}/"
-
-    def get_web_ui_autologin_url(self, login: str, password: str):
-        """
-        URL с автоматическим входом — только для IP-камер Hikvision.
-        Для остальных видов возвращает None.
-        """
-        if not self.supports_web_ui:
-            return None
-        ip = self.primary_ip
-        if not ip:
-            return None
-
-        if self.kind == self.KIND_CAMERA:
-            return (
-                f"http://{ip}/dispatch.asp"
-                f"?user={quote(login)}"
-                f"&pass={quote(password)}"
-                f"&page=preview.asp"
-            )
-
-        return None
 
 
 class IPAddress(models.Model):

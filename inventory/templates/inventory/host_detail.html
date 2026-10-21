@@ -319,7 +319,7 @@
 
             {# ---------- УДАЛЁННЫЙ ДОСТУП ---------- #}
             {% if can_edit %}
-                {% if host.supports_teamviewer or host.supports_desktop_share or host.supports_web_ui %}
+                {% if host.supports_teamviewer or host.supports_desktop_share or web_ui_url %}
                 <div class="card">
                     <h2>Удалённый доступ</h2>
 
@@ -341,13 +341,13 @@
                         >Открыть рабочий стол</button>
                     {% endif %}
 
-                    {% if host.supports_web_ui and host.web_ui_url %}
+                    {% if web_ui_url %}
                         <a
                             class="webui-btn"
-                            href="{{ host.web_ui_url }}"
+                            href="{{ web_ui_url }}"
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Открыть веб-интерфейс: {{ host.web_ui_url }}"
+                            title="Открыть веб-интерфейс: {{ web_ui_url }}"
                         >Открыть веб-интерфейс</a>
                     {% endif %}
                 </div>
@@ -476,6 +476,7 @@
                                     aria-label="Скопировать доменное имя"></button>
                         {% endif %}
                     </dd>
+
                     {% if host.supports_ssid %}
                         <dt>SSID</dt>
                         <dd>
@@ -488,6 +489,7 @@
                             {% endif %}
                         </dd>
                     {% endif %}
+
                     <dt>MAC-адрес</dt>
                     <dd class="mono">
                         {{ host.mac_address|default:"—" }}

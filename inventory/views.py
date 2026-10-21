@@ -33,6 +33,7 @@ HOSTS_PER_PAGE = 25
 
 
 def _build_page_range(current, total, window=2):
+    """Возвращает список страниц для навигатора. None = «…»."""
     if total <= 1:
         return [1]
 
@@ -66,7 +67,7 @@ def dashboard(request):
     history = History.objects.none()
     softwares = Software.objects.none()
 
-    # Фильтр по типам — применяется независимо от текстового поиска
+    # Фильтр по типам — независимо от текстового поиска
     if kinds_selected:
         hosts = hosts.filter(kind__in=kinds_selected)
 
@@ -76,6 +77,7 @@ def dashboard(request):
             | Q(kind__icontains=query)
             | Q(domain_name__icontains=query)
             | Q(mac_address__icontains=query)
+            | Q(ssid__icontains=query)
             | Q(comment__icontains=query)
             | Q(ip_addresses__address__icontains=query)
             | Q(ip_addresses__comment__icontains=query)
@@ -115,6 +117,7 @@ def dashboard(request):
             | Q(comment__icontains=query)
             | Q(hosts__domain_name__icontains=query)
             | Q(hosts__ip_addresses__address__icontains=query)
+            | Q(hosts__ssid__icontains=query)
             | Q(accounts__login__icontains=query)
             | Q(accounts__comment__icontains=query)
             | Q(sims__full_number__icontains=query)
@@ -157,6 +160,7 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
+    # Аннотации для сортировки — считаются один раз
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
@@ -179,6 +183,7 @@ def dashboard(request):
             field = "-" + field
         hosts = hosts.order_by(field)
 
+    # ---------- ПАГИНАЦИЯ ----------
     paginator = Paginator(hosts, HOSTS_PER_PAGE)
     try:
         page_obj = paginator.page(page_number)
@@ -248,19 +253,6 @@ def host_detail(request, pk):
 
     hardware = HardwareInfo.objects.filter(host=host).first()
 
-    web_account = host.accounts.filter(kind=Account.KIND_HOST).first()
-    base_web_url = host.web_ui_url
-    web_ui_url = base_web_url
-    web_ui_autologin = False
-
-    if base_web_url and web_account and web_account.login:
-        autologin = host.get_web_ui_autologin_url(
-            web_account.login, web_account.password or ""
-        )
-        if autologin:
-            web_ui_url = autologin
-            web_ui_autologin = True
-
     context = {
         "host": host,
         "hardware": hardware,
@@ -271,9 +263,7 @@ def host_detail(request, pk):
         "softwares": host.softwares.all(),
         "history": host.history.all(),
         "can_edit": can_edit,
-        "web_account": web_account,
-        "web_ui_url": web_ui_url,
-        "web_ui_autologin": web_ui_autologin,
+        "web_ui_url": host.web_ui_url,
     }
     return render(request, "inventory/host_detail.html", context)
 
@@ -335,6 +325,7 @@ def host_ping(request, pk):
 
 
 def ldap_search_view(request):
+    """Поиск в LDAP-каталоге. Доступ — только администраторам."""
     if not (request.user.is_authenticated and request.user.is_staff):
         raise PermissionDenied("Поиск в каталоге доступен только администратору.")
 
