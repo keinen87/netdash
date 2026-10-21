@@ -56,6 +56,8 @@ class Host(models.Model):
     KIND_SERVER = "server"
     KIND_PRINTER = "printer"
     KIND_VCC_ENDPOINT = "vcc"
+    KIND_IP_PHONE = "ip_phone"
+    KIND_METER = "meter"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -74,6 +76,8 @@ class Host(models.Model):
         (KIND_SERVER, "Сервер"),
         (KIND_PRINTER, "Принтер/плоттер/МФУ"),
         (KIND_VCC_ENDPOINT, "Терминал ВКС"),
+        (KIND_IP_PHONE, "IP-телефон"),
+        (KIND_METER, "Электрический счётчик"),
         (KIND_OTHER, "Другое"),
     ]
 
@@ -87,6 +91,8 @@ class Host(models.Model):
         KIND_MODEM,
         KIND_PRINTER,
         KIND_VCC_ENDPOINT,
+        KIND_IP_PHONE,
+        KIND_METER,
     }
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
