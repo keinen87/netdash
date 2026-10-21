@@ -3,7 +3,6 @@
 {% block title %}NetDash — Хосты{% endblock %}
 
 {% block extra_css %}
-    /* ---------- Форма поиска + фильтр по типам ---------- */
     form.search {
         display: flex;
         flex-direction: column;
@@ -45,7 +44,7 @@
         white-space: nowrap;
     }
 
-    /* Пилюли-чекбоксы для фильтра по типам */
+    /* Пилюли-чекбоксы */
     .kind-filters {
         display: flex;
         flex-wrap: wrap;
@@ -56,6 +55,7 @@
         color: #777;
         font-size: 14px;
         margin-right: 4px;
+        min-width: 110px;
     }
     .kind-chip {
         position: relative;
@@ -89,6 +89,21 @@
         border-color: #2d6cdf;
     }
 
+    /* Пилюли для сетей — фиолетовые, чтобы визуально отличались */
+    .subnet-filters .kind-chip:hover span {
+        background: #f3e8ff;
+        border-color: #d4b8ea;
+        color: #7b3fb5;
+    }
+    .subnet-filters .kind-chip input:checked + span {
+        background: #7b3fb5;
+        color: white;
+        border-color: #7b3fb5;
+    }
+    .subnet-chip span {
+        font-family: monospace;
+    }
+
     /* ---------- Строки в ячейках ---------- */
     .user-line {
         margin-bottom: 4px;
@@ -120,7 +135,7 @@
         opacity: 0.25;
     }
 
-    /* ---------- Кликабельные и подсвечиваемые строки ---------- */
+    /* ---------- Кликабельные строки ---------- */
     tr.row-link {
         cursor: pointer;
         transition: background 0.12s ease;
@@ -207,7 +222,7 @@
         border-radius: 4px;
     }
 
-    /* ---------- Нижняя ссылка на LDAP-поиск ---------- */
+    /* ---------- Нижняя ссылка ---------- */
     .bottom-nav {
         margin-top: 3rem;
         padding-top: 1.5rem;
@@ -244,7 +259,7 @@
                 autofocus
             >
             <button type="submit">Найти</button>
-            {% if query or kinds_selected %}
+            {% if query or kinds_selected or subnets_selected %}
                 <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
             {% endif %}
         </div>
@@ -263,18 +278,37 @@
                 </label>
             {% endfor %}
         </div>
+
+        {% if available_subnets %}
+            <div class="kind-filters subnet-filters">
+                <span class="kind-filters-label">Сети:</span>
+                {% for subnet in available_subnets %}
+                    <label class="kind-chip subnet-chip">
+                        <input
+                            type="checkbox"
+                            name="subnet"
+                            value="{{ subnet }}"
+                            {% if subnet in subnets_selected %}checked{% endif %}
+                        >
+                        <span>{{ subnet }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        {% endif %}
     </form>
 
-    {% if query or kinds_selected %}
+    {% if query or kinds_selected or subnets_selected %}
         <p class="filter-summary">
             {% if query %}
                 Результаты поиска по запросу <strong>«{{ query }}»</strong>
             {% endif %}
-            {% if query and kinds_selected %}
-                ·
-            {% endif %}
             {% if kinds_selected %}
+                {% if query %} · {% endif %}
                 Выбрано типов хостов: <strong>{{ kinds_selected|length }}</strong>
+            {% endif %}
+            {% if subnets_selected %}
+                {% if query or kinds_selected %} · {% endif %}
+                Выбрано сетей: <strong>{{ subnets_selected|length }}</strong>
             {% endif %}
         </p>
     {% endif %}
@@ -497,11 +531,11 @@
             });
         });
 
-        // Автосабмит при клике на чекбокс-пилюлю
+        // Автосабмит при клике на ЛЮБОЙ чекбокс в форме поиска
         var searchForm = document.querySelector("form.search");
         if (searchForm) {
             var submitTimer;
-            searchForm.querySelectorAll('.kind-chip input[type="checkbox"]').forEach(function (cb) {
+            searchForm.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
                 cb.addEventListener("change", function () {
                     clearTimeout(submitTimer);
                     submitTimer = setTimeout(function () {
@@ -509,7 +543,6 @@
                     }, 300);
                 });
             });
-            // Отменяем таймер при ручной отправке
             searchForm.addEventListener("submit", function () {
                 clearTimeout(submitTimer);
             });

@@ -2,6 +2,7 @@ import ipaddress
 import platform
 import subprocess
 
+from ipaddress import IPv4Address, ip_network
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import OuterRef, Q, Subquery
@@ -53,12 +54,30 @@ def _build_page_range(current, total, window=2):
     return result
 
 
+def _collect_subnets():
+    """
+    Возвращает отсортированный список подсетей /24 из всех IPv4-адресов.
+    Например: ["192.168.80.0/24", "192.168.123.0/24"].
+    IPv6-адреса в подсети не попадают — они слишком разнородны.
+    """
+    subnets = set()
+    for ip in IPAddress.objects.values_list("address", flat=True):
+        try:
+            addr = IPv4Address(ip)
+        except (ValueError, TypeError):
+            continue
+        octets = str(addr).split(".")
+        subnets.add(f"{octets[0]}.{octets[1]}.{octets[2]}.0/24")
+    return sorted(subnets)
+
+
 def dashboard(request):
     query = request.GET.get("q", "").strip()
     sort = request.GET.get("sort", "").strip()
     direction = request.GET.get("dir", "asc").strip()
     page_number = request.GET.get("page", "1").strip()
     kinds_selected = request.GET.getlist("kind")
+    subnets_selected = request.GET.getlist("subnet")
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
     persons = Person.objects.none()
@@ -67,10 +86,28 @@ def dashboard(request):
     history = History.objects.none()
     softwares = Software.objects.none()
 
-    # Фильтр по типам — независимо от текстового поиска
+    # Фильтр по типам
     if kinds_selected:
         hosts = hosts.filter(kind__in=kinds_selected)
 
+    # Фильтр по подсетям — OR между выбранными сетями
+    if subnets_selected:
+        subnet_q = Q()
+        has_valid_subnet = False
+        for subnet in subnets_selected:
+            try:
+                ip_network(subnet, strict=False)
+            except (ValueError, TypeError):
+                continue
+            # Префикс "192.168.80" + точка — надёжнее, чем startswith("192.168.80")
+            # потому что отсекает "192.168.800.x" (если такой введут случайно)
+            prefix = subnet.split("/")[0].rsplit(".", 1)[0] + "."
+            subnet_q |= Q(ip_addresses__address__startswith=prefix)
+            has_valid_subnet = True
+        if has_valid_subnet:
+            hosts = hosts.filter(subnet_q)
+
+    # Текстовый поиск
     if query:
         hosts = hosts.filter(
             Q(description__icontains=query)
@@ -160,7 +197,7 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
-    # Аннотации для сортировки — считаются один раз
+    # Аннотации для сортировки
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
@@ -183,7 +220,7 @@ def dashboard(request):
             field = "-" + field
         hosts = hosts.order_by(field)
 
-    # ---------- ПАГИНАЦИЯ ----------
+    # ---------- Пагинация ----------
     paginator = Paginator(hosts, HOSTS_PER_PAGE)
     try:
         page_obj = paginator.page(page_number)
@@ -192,14 +229,12 @@ def dashboard(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    # Все GET-параметры, кроме page — для ссылок пагинации
     query_params = request.GET.copy()
     query_params.pop("page", None)
     query_suffix = query_params.urlencode()
     if query_suffix:
         query_suffix += "&"
 
-    # Все GET-параметры, кроме page, sort, dir — для ссылок сортировки
     sort_params = request.GET.copy()
     sort_params.pop("page", None)
     sort_params.pop("sort", None)
@@ -214,6 +249,8 @@ def dashboard(request):
         "direction": direction,
         "kinds_selected": kinds_selected,
         "kind_choices": Host.KIND_CHOICES,
+        "subnets_selected": subnets_selected,
+        "available_subnets": _collect_subnets(),
         "page_obj": page_obj,
         "paginator": paginator,
         "page_range": _build_page_range(page_obj.number, paginator.num_pages),
