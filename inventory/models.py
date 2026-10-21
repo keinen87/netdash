@@ -55,6 +55,7 @@ class Host(models.Model):
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
     KIND_PRINTER = "printer"
+    KIND_VCC_ENDPOINT = "vcc"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -70,12 +71,13 @@ class Host(models.Model):
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
         (KIND_PRINTER, "Принтер/плоттер/МФУ"),
+        (KIND_VCC_ENDPOINT, "Терминал ВКС"),
         (KIND_OTHER, "Другое"),
     ]
 
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
-    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER, KIND_PRINTER}
+    WEB_UI_KINDS = {KIND_CAMERA, KIND_BRIDGE, KIND_ROUTER, KIND_PRINTER, KIND_VCC_ENDPOINT}
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
 
     description = models.CharField("Описание", max_length=255, blank=True)
