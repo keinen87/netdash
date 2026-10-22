@@ -3,3 +3,6 @@ django-encrypted-model-fields==0.6.5
 python-dotenv==1.2.4
 ldap3==2.9.1
 openpyxl==3.1.5
+dj-database-url==3.1.2
+psycopg2-binary==2.9.13
+cryptography==50.0.2
