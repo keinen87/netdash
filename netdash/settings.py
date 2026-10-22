@@ -154,8 +154,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
+    "default": {
+        "BACKEND": "django.core.mail.backends.dummy.EmailBackend",
+    }
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
