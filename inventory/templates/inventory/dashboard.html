@@ -89,7 +89,7 @@
         border-color: #2d6cdf;
     }
 
-    /* Пилюля «С SIM-картой» — зелёный акцент, чтобы отличалась от типов */
+    /* Пилюля «С SIM-картой» — зелёный акцент */
     .sim-chip input:checked + span {
         background: #1e7a37;
         color: white;
@@ -290,7 +290,6 @@
                 </label>
             {% endfor %}
 
-            {# Специальная пилюля — не тип хоста, а критерий «есть SIM» #}
             <label class="kind-chip sim-chip">
                 <input
                     type="checkbox"
@@ -355,6 +354,16 @@
                         {% endif %}
                     </a>
                 </th>
+                <th class="sortable {% if sort == 'kind' %}active{% endif %}">
+                    <a href="?{{ sort_suffix }}sort=kind&amp;dir={% if sort == 'kind' and direction == 'asc' %}desc{% else %}asc{% endif %}">
+                        Тип
+                        {% if sort == 'kind' %}
+                            <span class="arrow">{% if direction == 'asc' %}▲{% else %}▼{% endif %}</span>
+                        {% else %}
+                            <span class="arrow placeholder">↕</span>
+                        {% endif %}
+                    </a>
+                </th>
                 <th class="sortable {% if sort == 'domain' %}active{% endif %}">
                     <a href="?{{ sort_suffix }}sort=domain&amp;dir={% if sort == 'domain' and direction == 'asc' %}desc{% else %}asc{% endif %}">
                         Доменное имя
@@ -395,6 +404,7 @@
                         <div class="user-line host-desc-fallback">{{ h.description|default:"—" }}</div>
                     {% endfor %}
                 </td>
+                <td>{{ h.get_kind_display }}</td>
                 <td>{{ h.domain_name|default:"—" }}</td>
                 <td class="mono">{{ h.primary_ip|default:"—" }}</td>
                 <td>

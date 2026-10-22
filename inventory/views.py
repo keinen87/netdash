@@ -7,7 +7,7 @@ from ipaddress import IPv4Address, ip_network
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import Case, CharField, OuterRef, Q, Subquery, Value, When
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -27,6 +27,7 @@ from .models import (
 
 HOST_SORT_FIELDS = {
     "fio": "first_user_name",
+    "kind": "kind_order",
     "domain": "domain_name",
     "ip": "first_ip_address",
     "phone": "first_user_phone",
@@ -211,6 +212,16 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
+    # Виртуальное поле с русским названием типа — для правильной сортировки
+    kind_order_case = Case(
+        *[
+            When(kind=code, then=Value(label.lower()))
+            for code, label in Host.KIND_CHOICES
+        ],
+        output_field=CharField(),
+        default=Value(""),
+    )
+
     # Аннотации для сортировки
     first_user = (
         Person.objects
@@ -226,6 +237,7 @@ def dashboard(request):
         first_user_name=Subquery(first_user.values("full_name")[:1]),
         first_user_phone=Subquery(first_user.values("phone_work")[:1]),
         first_ip_address=Subquery(first_ip.values("address")[:1]),
+        kind_order=kind_order_case,
     )
 
     if sort in HOST_SORT_FIELDS:
