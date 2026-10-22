@@ -58,6 +58,7 @@ class Host(models.Model):
     KIND_VCC_ENDPOINT = "vcc"
     KIND_IP_PHONE = "ip_phone"
     KIND_METER = "meter"
+    KIND_PBX = "pbx"
     KIND_OTHER = "other"
 
     KIND_CHOICES = [
@@ -78,6 +79,7 @@ class Host(models.Model):
         (KIND_VCC_ENDPOINT, "Терминал ВКС"),
         (KIND_IP_PHONE, "IP-телефон"),
         (KIND_METER, "Электрический счётчик"),
+        (KIND_PBX, "PBX (мини-АТС)"),
         (KIND_OTHER, "Другое"),
     ]
 
@@ -93,6 +95,7 @@ class Host(models.Model):
         KIND_VCC_ENDPOINT,
         KIND_IP_PHONE,
         KIND_METER,
+        KIND_PBX,
     }
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
     SERIAL_KINDS = {KIND_NVR}
