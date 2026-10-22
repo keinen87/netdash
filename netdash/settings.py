@@ -44,6 +44,16 @@ LDAP_NETBIOS_DOMAIN = os.environ.get("LDAP_NETBIOS_DOMAIN", "")
 LOGIN_URL = "/admin/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
+
+# ---------- Фильтр сетей на главной ----------
+# Список подсетей, которые не показываются в пилюлях-фильтре.
+# Например, сети, используемые только SIM-картами.
+EXCLUDED_SUBNETS = [
+    s.strip()
+    for s in os.environ.get("EXCLUDED_SUBNETS", "").split(",")
+    if s.strip()
+]
+
 # Application definition
 
 INSTALLED_APPS = [

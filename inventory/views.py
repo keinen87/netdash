@@ -4,6 +4,7 @@ import subprocess
 
 from ipaddress import IPv4Address, ip_network
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import OuterRef, Q, Subquery
@@ -59,7 +60,12 @@ def _collect_subnets():
     """
     Возвращает отсортированный список подсетей /24 из всех IPv4-адресов.
     Например: ["192.168.80.0/24", "192.168.123.0/24"].
+
+    Подсети из settings.EXCLUDED_SUBNETS не попадают в результат —
+    они не показываются в фильтре на главной.
     """
+    excluded = set(getattr(settings, "EXCLUDED_SUBNETS", []))
+
     subnets = set()
     for ip in IPAddress.objects.values_list("address", flat=True):
         try:
@@ -67,7 +73,10 @@ def _collect_subnets():
         except (ValueError, TypeError):
             continue
         octets = str(addr).split(".")
-        subnets.add(f"{octets[0]}.{octets[1]}.{octets[2]}.0/24")
+        subnet = f"{octets[0]}.{octets[1]}.{octets[2]}.0/24"
+        if subnet in excluded:
+            continue
+        subnets.add(subnet)
     return sorted(subnets)
 
 
