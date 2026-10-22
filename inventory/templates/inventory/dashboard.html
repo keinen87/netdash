@@ -89,7 +89,19 @@
         border-color: #2d6cdf;
     }
 
-    /* Пилюли для сетей — фиолетовые, чтобы визуально отличались */
+    /* Пилюля «С SIM-картой» — зелёный акцент, чтобы отличалась от типов */
+    .sim-chip input:checked + span {
+        background: #1e7a37;
+        color: white;
+        border-color: #1e7a37;
+    }
+    .sim-chip:hover span {
+        background: #e2f5e7;
+        border-color: #a4d9b3;
+        color: #1e7a37;
+    }
+
+    /* Пилюли для сетей — фиолетовые */
     .subnet-filters .kind-chip:hover span {
         background: #f3e8ff;
         border-color: #d4b8ea;
@@ -259,7 +271,7 @@
                 autofocus
             >
             <button type="submit">Найти</button>
-            {% if query or kinds_selected or subnets_selected %}
+            {% if query or kinds_selected or subnets_selected or has_sim %}
                 <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
             {% endif %}
         </div>
@@ -277,6 +289,17 @@
                     <span>{{ label }}</span>
                 </label>
             {% endfor %}
+
+            {# Специальная пилюля — не тип хоста, а критерий «есть SIM» #}
+            <label class="kind-chip sim-chip">
+                <input
+                    type="checkbox"
+                    name="has_sim"
+                    value="1"
+                    {% if has_sim %}checked{% endif %}
+                >
+                <span>С SIM-картой</span>
+            </label>
         </div>
 
         {% if available_subnets %}
@@ -297,7 +320,7 @@
         {% endif %}
     </form>
 
-    {% if query or kinds_selected or subnets_selected %}
+    {% if query or kinds_selected or subnets_selected or has_sim %}
         <p class="filter-summary">
             {% if query %}
                 Результаты поиска по запросу <strong>«{{ query }}»</strong>
@@ -306,8 +329,12 @@
                 {% if query %} · {% endif %}
                 Выбрано типов хостов: <strong>{{ kinds_selected|length }}</strong>
             {% endif %}
-            {% if subnets_selected %}
+            {% if has_sim %}
                 {% if query or kinds_selected %} · {% endif %}
+                Только с SIM-картой
+            {% endif %}
+            {% if subnets_selected %}
+                {% if query or kinds_selected or has_sim %} · {% endif %}
                 Выбрано сетей: <strong>{{ subnets_selected|length }}</strong>
             {% endif %}
         </p>
@@ -521,7 +548,6 @@
     </div>
 
     <script>
-        // Клик по строке — переход на карточку
         document.querySelectorAll("tr.row-link").forEach(function (row) {
             row.addEventListener("click", function (event) {
                 if (event.target.closest("a, button, input, textarea, select")) return;
@@ -531,7 +557,6 @@
             });
         });
 
-        // Автосабмит при клике на ЛЮБОЙ чекбокс в форме поиска
         var searchForm = document.querySelector("form.search");
         if (searchForm) {
             var submitTimer;

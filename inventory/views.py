@@ -3,6 +3,7 @@ import platform
 import subprocess
 
 from ipaddress import IPv4Address, ip_network
+
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import OuterRef, Q, Subquery
@@ -58,7 +59,6 @@ def _collect_subnets():
     """
     Возвращает отсортированный список подсетей /24 из всех IPv4-адресов.
     Например: ["192.168.80.0/24", "192.168.123.0/24"].
-    IPv6-адреса в подсети не попадают — они слишком разнородны.
     """
     subnets = set()
     for ip in IPAddress.objects.values_list("address", flat=True):
@@ -78,6 +78,7 @@ def dashboard(request):
     page_number = request.GET.get("page", "1").strip()
     kinds_selected = request.GET.getlist("kind")
     subnets_selected = request.GET.getlist("subnet")
+    has_sim = request.GET.get("has_sim") == "1"
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
     persons = Person.objects.none()
@@ -99,13 +100,15 @@ def dashboard(request):
                 ip_network(subnet, strict=False)
             except (ValueError, TypeError):
                 continue
-            # Префикс "192.168.80" + точка — надёжнее, чем startswith("192.168.80")
-            # потому что отсекает "192.168.800.x" (если такой введут случайно)
             prefix = subnet.split("/")[0].rsplit(".", 1)[0] + "."
             subnet_q |= Q(ip_addresses__address__startswith=prefix)
             has_valid_subnet = True
         if has_valid_subnet:
             hosts = hosts.filter(subnet_q)
+
+    # Фильтр «есть SIM-карта»
+    if has_sim:
+        hosts = hosts.filter(sims__isnull=False).distinct()
 
     # Текстовый поиск
     if query:
@@ -251,6 +254,7 @@ def dashboard(request):
         "kind_choices": Host.KIND_CHOICES,
         "subnets_selected": subnets_selected,
         "available_subnets": _collect_subnets(),
+        "has_sim": has_sim,
         "page_obj": page_obj,
         "paginator": paginator,
         "page_range": _build_page_range(page_obj.number, paginator.num_pages),
