@@ -1,37 +1,36 @@
 (function () {
     "use strict";
 
-    // Виды хостов, для которых поле ssid должно быть активно
-    var SSID_KINDS = ["bridge", "router"];
+    // Соответствие: ID поля → список видов хостов, при которых поле активно
+    var FIELD_KINDS = {
+        "id_ssid": ["bridge", "router"],
+        "id_serial_number": ["nvr"]
+    };
 
-    function updateSsidVisibility() {
+    function updateFieldVisibility(inputId, kinds) {
         var kindSelect = document.getElementById("id_kind");
-        var ssidInput = document.getElementById("id_ssid");
-        if (!kindSelect || !ssidInput) return;
+        var input = document.getElementById(inputId);
+        if (!kindSelect || !input) return;
 
-        // Найти ближайший родительский .form-row — стандартный контейнер поля в админке
-        var row = ssidInput.closest(".form-row");
+        var row = input.closest(".form-row");
         if (!row) return;
 
-        var selected = kindSelect.value;
-        var active = SSID_KINDS.indexOf(selected) !== -1;
+        var active = kinds.indexOf(kindSelect.value) !== -1;
+        // Скрываем визуально, но не отключаем — значение сохраняется при смене типа
+        row.style.display = active ? "" : "none";
+    }
 
-        if (active) {
-            row.style.display = "";
-            ssidInput.disabled = false;
-        } else {
-            row.style.display = "none";
-            // Отключаем поле, чтобы при сохранении значение не перезаписалось
-            // (или, если хотите сохранение старых SSID при смене типа — уберите эту строку)
-            ssidInput.disabled = true;
-        }
+    function updateAll() {
+        Object.keys(FIELD_KINDS).forEach(function (inputId) {
+            updateFieldVisibility(inputId, FIELD_KINDS[inputId]);
+        });
     }
 
     document.addEventListener("DOMContentLoaded", function () {
         var kindSelect = document.getElementById("id_kind");
         if (!kindSelect) return;
 
-        kindSelect.addEventListener("change", updateSsidVisibility);
-        updateSsidVisibility(); // применить сразу при загрузке
+        kindSelect.addEventListener("change", updateAll);
+        updateAll();
     });
 })();

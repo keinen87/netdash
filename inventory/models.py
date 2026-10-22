@@ -95,12 +95,14 @@ class Host(models.Model):
         KIND_METER,
     }
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
+    SERIAL_KINDS = {KIND_NVR}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     domain_name = models.CharField("Доменное имя", max_length=255, blank=True)
     mac_address = models.CharField("MAC-адрес", max_length=17, blank=True)
     ssid = models.CharField("SSID", max_length=64, blank=True)
+    serial_number = models.CharField("Серийный номер", max_length=64, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
     users = models.ManyToManyField(
@@ -142,6 +144,10 @@ class Host(models.Model):
     @property
     def supports_ssid(self):
         return self.kind in self.SSID_KINDS
+
+    @property
+    def supports_serial(self):
+        return self.kind in self.SERIAL_KINDS
 
     def _desktop_share_data(self):
         """Возвращает (domain_name, login) или (None, None), если путь невозможен."""

@@ -501,6 +501,19 @@
                         {% endif %}
                     </dd>
 
+                    {% if host.supports_serial %}
+                        <dt>Серийный номер</dt>
+                        <dd class="mono">
+                            {{ host.serial_number|default:"—" }}
+                            {% if host.serial_number %}
+                                <button class="copy-btn" type="button"
+                                        data-copy="{{ host.serial_number }}"
+                                        title="Скопировать серийный номер"
+                                        aria-label="Скопировать серийный номер"></button>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+
                     <dt>Описание</dt><dd>{{ host.description|default:"—"|linebreaksbr }}</dd>
                     <dt>Комментарий</dt><dd>{{ host.comment|default:"—"|linebreaksbr }}</dd>
                 </dl>
