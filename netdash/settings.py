@@ -28,7 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-FIELD_ENCRYPTION_KEY = 'crIlbneVA3HN_9l9oOXekpyAMNZP1wfRJ4RiKnBK26k='
+FIELD_ENCRYPTION_KEY = os.environ["FIELD_ENCRYPTION_KEY"]
 
 # ---------- LDAP ----------
 LDAP_SERVER = os.environ.get("LDAP_SERVER", "")

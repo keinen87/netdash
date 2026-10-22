@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from encrypted_model_fields.fields import EncryptedCharField
 
 
 class Software(models.Model):
@@ -298,7 +299,7 @@ class Account(models.Model):
 
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     login = models.CharField("Логин", max_length=255)
-    password = models.CharField("Пароль", max_length=255, blank=True)
+    password = EncryptedCharField("Пароль", max_length=255, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
     person = models.ForeignKey(
