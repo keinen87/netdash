@@ -2,17 +2,25 @@ import ipaddress
 import platform
 import subprocess
 
-from ipaddress import IPv4Address, ip_network
+from ipaddress import IPv4Address
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Case, CharField, OuterRef, Q, Subquery, Value, When
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from openpyxl import Workbook
+from openpyxl.cell import WriteOnlyCell
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
+
 from . import ldap_client
+from .export_fields import EXPORT_FIELDS_BY_KEY, FIELD_GROUPS
+from .host_filters import apply_host_filters
 from .models import (
     Account,
     HardwareInfo,
@@ -60,10 +68,7 @@ def _build_page_range(current, total, window=2):
 def _collect_subnets():
     """
     Возвращает отсортированный список подсетей /24 из всех IPv4-адресов.
-    Например: ["192.168.80.0/24", "192.168.123.0/24"].
-
-    Подсети из settings.EXCLUDED_SUBNETS не попадают в результат —
-    они не показываются в фильтре на главной.
+    Подсети из settings.EXCLUDED_SUBNETS не попадают в результат.
     """
     excluded = set(getattr(settings, "EXCLUDED_SUBNETS", []))
 
@@ -91,75 +96,18 @@ def dashboard(request):
     has_sim = request.GET.get("has_sim") == "1"
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
+
+    # ← Вся фильтрация в одном месте — та же, что и в экспорте
+    hosts = apply_host_filters(request, hosts)
+
+    # Блоки «результаты поиска» по другим моделям — отдельно от фильтрации хостов
     persons = Person.objects.none()
     accounts = Account.objects.none()
     sims = SIM.objects.none()
     history = History.objects.none()
     softwares = Software.objects.none()
 
-    # Фильтр по типам
-    if kinds_selected:
-        hosts = hosts.filter(kind__in=kinds_selected)
-
-    # Фильтр по подсетям — OR между выбранными сетями
-    if subnets_selected:
-        subnet_q = Q()
-        has_valid_subnet = False
-        for subnet in subnets_selected:
-            try:
-                ip_network(subnet, strict=False)
-            except (ValueError, TypeError):
-                continue
-            prefix = subnet.split("/")[0].rsplit(".", 1)[0] + "."
-            subnet_q |= Q(ip_addresses__address__startswith=prefix)
-            has_valid_subnet = True
-        if has_valid_subnet:
-            hosts = hosts.filter(subnet_q)
-
-    # Фильтр «есть SIM-карта»
-    if has_sim:
-        hosts = hosts.filter(sims__isnull=False).distinct()
-
-    # Текстовый поиск
     if query:
-        hosts = hosts.filter(
-            Q(description__icontains=query)
-            | Q(kind__icontains=query)
-            | Q(domain_name__icontains=query)
-            | Q(mac_address__icontains=query)
-            | Q(ssid__icontains=query)
-            | Q(serial_number__icontains=query)
-            | Q(comment__icontains=query)
-            | Q(ip_addresses__address__icontains=query)
-            | Q(ip_addresses__comment__icontains=query)
-            | Q(users__full_name__icontains=query)
-            | Q(users__position__icontains=query)
-            | Q(users__phone_work__icontains=query)
-            | Q(users__description__icontains=query)
-            | Q(users__comment__icontains=query)
-            | Q(softwares__name__icontains=query)
-            | Q(softwares__version__icontains=query)
-            | Q(softwares__comment__icontains=query)
-            | Q(hardware__manufacturer__icontains=query)
-            | Q(hardware__cpu__icontains=query)
-            | Q(hardware__ram__icontains=query)
-            | Q(hardware__motherboard__icontains=query)
-            | Q(hardware__storage_type__icontains=query)
-            | Q(hardware__storage_capacity__icontains=query)
-            | Q(hardware__comment__icontains=query)
-            | Q(accounts__login__icontains=query)
-            | Q(accounts__kind__icontains=query)
-            | Q(accounts__comment__icontains=query)
-            | Q(accounts__person__full_name__icontains=query)
-            | Q(sims__full_number__icontains=query)
-            | Q(sims__short_number__icontains=query)
-            | Q(sims__icc__icontains=query)
-            | Q(sims__apn__icontains=query)
-            | Q(sims__comment__icontains=query)
-            | Q(sims__person__full_name__icontains=query)
-            | Q(history__fact__icontains=query)
-        ).distinct()
-
         persons = Person.objects.filter(
             Q(full_name__icontains=query)
             | Q(position__icontains=query)
@@ -212,7 +160,7 @@ def dashboard(request):
             | Q(hosts__ip_addresses__address__icontains=query)
         ).distinct()
 
-    # Виртуальное поле с русским названием типа — для правильной сортировки
+    # Виртуальное поле для сортировки по русскому названию типа
     kind_order_case = Case(
         *[
             When(kind=code, then=Value(label.lower()))
@@ -222,7 +170,6 @@ def dashboard(request):
         default=Value(""),
     )
 
-    # Аннотации для сортировки
     first_user = (
         Person.objects
         .filter(hosts=OuterRef("pk"))
@@ -246,7 +193,6 @@ def dashboard(request):
             field = "-" + field
         hosts = hosts.order_by(field)
 
-    # ---------- Пагинация ----------
     paginator = Paginator(hosts, HOSTS_PER_PAGE)
     try:
         page_obj = paginator.page(page_number)
@@ -423,3 +369,70 @@ def ldap_search_view(request):
         ],
     }
     return render(request, "inventory/ldap_search.html", context)
+
+
+def export_page(request):
+    """Страница выбора полей выгрузки. Текущие фильтры пробрасываются в форму."""
+    return render(request, "inventory/export.html", {
+        "field_groups": FIELD_GROUPS,
+        "export_fields_by_key": EXPORT_FIELDS_BY_KEY,
+        "query": request.GET.get("q", ""),
+        "kinds_selected": request.GET.getlist("kind"),
+        "subnets_selected": request.GET.getlist("subnet"),
+        "has_sim": request.GET.get("has_sim") == "1",
+    })
+
+
+def export_xlsx(request):
+    """Генерирует XLSX по выбранным полям и текущим фильтрам."""
+    selected = request.GET.getlist("field")
+    # whitelist: только известные ключи
+    selected = [k for k in selected if k in EXPORT_FIELDS_BY_KEY]
+    if not selected:
+        selected = ["kind", "domain_name", "primary_ip"]  # дефолт
+
+    hosts = Host.objects.prefetch_related(
+        "users", "ip_addresses", "softwares", "sims"
+    )
+    hosts = apply_host_filters(request, hosts)
+
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet("Хосты")
+
+    # Закрепляем первую строку — заголовки всегда видны
+    ws.freeze_panes = "A2"
+
+    # Ширина столбцов — по заголовкам, с запасом
+    for idx, key in enumerate(selected, start=1):
+        label = EXPORT_FIELDS_BY_KEY[key][0]
+        ws.column_dimensions[get_column_letter(idx)].width = max(14, len(label) + 4)
+
+    # Заголовки жирным
+    bold = Font(bold=True)
+    header_cells = []
+    for key in selected:
+        label = EXPORT_FIELDS_BY_KEY[key][0]
+        cell = WriteOnlyCell(ws, value=label)
+        cell.font = bold
+        header_cells.append(cell)
+    ws.append(header_cells)
+
+    # Данные
+    for host in hosts.iterator(chunk_size=500):
+        row = []
+        for key in selected:
+            label, getter = EXPORT_FIELDS_BY_KEY[key]
+            try:
+                value = getter(host)
+            except Exception:
+                value = ""
+            row.append(value)
+        ws.append(row)
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    filename = f"hosts_export_{timezone.now():%Y%m%d_%H%M%S}.xlsx"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response

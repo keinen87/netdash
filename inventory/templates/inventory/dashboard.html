@@ -258,6 +258,22 @@
         margin-right: 6px;
         font-size: 13px;
     }
+    .export-row {
+        margin: 0 0 1rem;
+        text-align: right;
+    }
+    .export-btn {
+        display: inline-block;
+        padding: 6px 14px;
+        font-size: 14px;
+        border: 1px solid #1e7a37;
+        background: #f0faf3;
+        color: #1e7a37;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+    .export-btn:hover { background: #e0f2e6; }
 {% endblock %}
 
 {% block content %}
@@ -318,7 +334,12 @@
             </div>
         {% endif %}
     </form>
-
+    <div class="export-row">
+        <a
+            href="{% url 'inventory:export_page' %}?{{ request.GET.urlencode }}"
+            class="export-btn"
+        >📥 Экспорт в Excel</a>
+    </div>
     {% if query or kinds_selected or subnets_selected or has_sim %}
         <p class="filter-summary">
             {% if query %}

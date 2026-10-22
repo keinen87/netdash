@@ -1,0 +1,143 @@
+{% extends "inventory/base.html" %}
+{% load dict_extras %}
+
+{% block body_max_width %}1000px{% endblock %}
+
+{% block title %}Выгрузка в Excel — NetDash{% endblock %}
+
+{% block extra_css %}
+    .back { font-size: 15px; margin-bottom: 1rem; }
+
+    .filters-info {
+        margin: 0 0 1.5rem;
+        padding: 10px 14px;
+        background: #eef4ff;
+        border-left: 3px solid #2d6cdf;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #444;
+    }
+    .filters-info strong { color: #222; }
+    .filters-info a { color: #2d6cdf; }
+
+    fieldset {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+        background: #fff;
+    }
+    fieldset legend {
+        padding: 0 8px;
+        color: #555;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .checkbox-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 20px;
+    }
+    .checkbox-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 15px;
+        color: #333;
+        padding: 4px 0;
+        user-select: none;
+    }
+    .checkbox-row label:hover { color: #2d6cdf; }
+    .checkbox-row input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #2d6cdf;
+        cursor: pointer;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e0e0e0;
+    }
+    .btn-primary {
+        padding: 10px 22px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        background: #1e7a37;
+        color: white;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #155c28; }
+    .btn-link {
+        color: #888;
+        text-decoration: none;
+        font-size: 15px;
+        margin-left: auto;
+    }
+    .btn-link:hover { color: #333; }
+    .hint {
+        color: #888;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+{% endblock %}
+
+{% block content %}
+    <p class="back"><a href="{% url 'inventory:dashboard' %}?{{ request.GET.urlencode }}">← На главную</a></p>
+
+    <h1>Выгрузка в Excel</h1>
+
+    {% if query or kinds_selected or subnets_selected or has_sim %}
+        <div class="filters-info">
+            Будут выгружены хосты с учётом текущих фильтров:
+            {% if query %}<br>поиск: <strong>«{{ query }}»</strong>{% endif %}
+            {% if kinds_selected %}<br>типов: <strong>{{ kinds_selected|length }}</strong>{% endif %}
+            {% if subnets_selected %}<br>сетей: <strong>{{ subnets_selected|length }}</strong>{% endif %}
+            {% if has_sim %}<br>только с SIM-картой{% endif %}
+            <br><a href="{% url 'inventory:dashboard' %}">Сбросить фильтры на главной</a>
+        </div>
+    {% endif %}
+
+    <form method="get" action="{% url 'inventory:export_xlsx' %}">
+        {# Пробрасываем текущие фильтры, чтобы Excel совпадал с тем, что на экране #}
+        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+        {% for k in kinds_selected %}<input type="hidden" name="kind" value="{{ k }}">{% endfor %}
+        {% for s in subnets_selected %}<input type="hidden" name="subnet" value="{{ s }}">{% endfor %}
+        {% if has_sim %}<input type="hidden" name="has_sim" value="1">{% endif %}
+
+        {% for group_title, keys in field_groups %}
+            <fieldset>
+                <legend>{{ group_title }}</legend>
+                <div class="checkbox-row">
+                    {% for key in keys %}
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="field"
+                                value="{{ key }}"
+                                {% if key == "kind" or key == "domain_name" or key == "primary_ip" %}checked{% endif %}
+                            >
+                            {{ export_fields_by_key|get_item_label:key }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+        {% endfor %}
+
+        <div class="actions">
+            <button type="submit" class="btn-primary">Скачать Excel</button>
+            <a href="{% url 'inventory:dashboard' %}?{{ request.GET.urlencode }}" class="btn-link">Отмена</a>
+        </div>
+        <p class="hint">По умолчанию отмечены три ключевых поля. Отметьте дополнительные, если нужны.</p>
+    </form>
+{% endblock %}
