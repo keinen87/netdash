@@ -56,6 +56,12 @@ EXCLUDED_SUBNETS = [
     if s.strip()
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 # Application definition
 
 INSTALLED_APPS = [
