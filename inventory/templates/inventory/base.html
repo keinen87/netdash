@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}NetDash{% endblock %}</title>
+    {% load static %}
+    <link rel="icon" type="image/x-icon" href="{% static 'inventory/favicon.ico' %}">
+    <link rel="shortcut icon" type="image/x-icon" href="{% static 'inventory/favicon.ico' %}">
     <style>
         /* ---------- Общие стили ---------- */
         body {

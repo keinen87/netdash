@@ -8,9 +8,10 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Case, CharField, OuterRef, Q, Subquery, Value, When
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
@@ -436,3 +437,8 @@ def export_xlsx(request):
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
+
+
+def favicon_redirect(request):
+    """Редирект /favicon.ico → статика с фавиконом."""
+    return HttpResponseRedirect(reverse("static", args=["inventory/favicon.ico"]))

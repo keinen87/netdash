@@ -11,4 +11,5 @@ urlpatterns = [
     path("directory/", views.ldap_search_view, name="ldap_search"),
     path("export/", views.export_page, name="export_page"),
     path("export/xlsx/", views.export_xlsx, name="export_xlsx"),
+    path("favicon.ico", views.favicon_redirect, name="favicon"),
 ]
