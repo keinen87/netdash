@@ -29,3 +29,4 @@ db.sqlite3
 *.json
 scripts/
 *.sh
+*.bat
