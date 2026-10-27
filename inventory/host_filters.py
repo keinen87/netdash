@@ -1,22 +1,47 @@
 """Общая логика фильтрации хостов для главной и выгрузки в Excel."""
 
+import re
+
 from ipaddress import ip_network
 
-from django.db.models import Q
+from django.db.models import F, Q, Value
+from django.db.models.functions import Replace, Upper
+
+
+# Все символы, кроме hex (0-9, A-F)
+_NON_HEX = re.compile(r"[^0-9A-Fa-f]")
+# Любой из разделителей MAC-адреса
+_HAS_SEPARATOR = re.compile(r"[-:.]")
+
+
+def normalize_mac(text: str) -> str:
+    """Убирает разделители из MAC: 'AA-BB-CC' → 'AABBCC'. Верхний регистр."""
+    return _NON_HEX.sub("", text).upper()
+
+
+def looks_like_mac(text: str) -> bool:
+    """
+    Похоже ли на MAC:
+      - ровно 12 hex-символов (AA:BB:CC:DD:EE:FF, AABBCCDDEEFF);
+      - или содержит разделитель и чётное число hex (AA-BB, AA:BB:CC).
+    """
+    cleaned = _NON_HEX.sub("", text)
+    if not cleaned:
+        return False
+    if _HAS_SEPARATOR.search(text) and len(cleaned) % 2 == 0:
+        return True
+    return len(cleaned) == 12
 
 
 def apply_host_filters(request, hosts):
     """
     Применяет к queryset хостов все фильтры из GET-запроса:
-      - q        — текстовый поиск
+      - q        — текстовый поиск (включая MAC в любом формате)
       - kind     — выбранные типы (OR между значениями)
       - subnet   — выбранные подсети /24 (OR между значениями)
       - has_sim  — только хосты с привязанной SIM-картой
 
     Возвращает отфильтрованный queryset.
-
-    Этот же код используется и главной страницей, и экспортом в Excel —
-    чтобы данные всегда совпадали.
     """
     query = request.GET.get("q", "").strip()
     kinds = request.GET.getlist("kind")
@@ -44,7 +69,7 @@ def apply_host_filters(request, hosts):
         hosts = hosts.filter(sims__isnull=False).distinct()
 
     if query:
-        hosts = hosts.filter(
+        q = (
             Q(description__icontains=query)
             | Q(kind__icontains=query)
             | Q(domain_name__icontains=query)
@@ -80,6 +105,26 @@ def apply_host_filters(request, hosts):
             | Q(sims__comment__icontains=query)
             | Q(sims__person__full_name__icontains=query)
             | Q(history__fact__icontains=query)
-        ).distinct()
+        )
+
+        # Поиск по MAC в любом формате
+        if looks_like_mac(query):
+            # Нормализуем mac_address в БД: убираем :, -, ., в верхний регистр
+            mac_clean = Upper(
+                Replace(
+                    Replace(
+                        Replace(F("mac_address"), Value(":"), Value("")),
+                        Value("-"),
+                        Value(""),
+                    ),
+                    Value("."),
+                    Value(""),
+                )
+            )
+            norm_query = normalize_mac(query)
+            hosts = hosts.annotate(_mac_clean=mac_clean)
+            q |= Q(_mac_clean__contains=norm_query)
+
+        hosts = hosts.filter(q).distinct()
 
     return hosts
