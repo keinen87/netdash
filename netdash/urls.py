@@ -17,7 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from inventory import views as inventory_views
+
 urlpatterns = [
+    path("admin/backup/", inventory_views.backup_trigger_view, name="admin_backup"),
     path("admin/", admin.site.urls),
     path("", include("inventory.urls")),
 ]

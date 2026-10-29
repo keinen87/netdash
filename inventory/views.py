@@ -1,17 +1,19 @@
 import ipaddress
 import platform
 import subprocess
+import sys
 
 from ipaddress import IPv4Address
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.contrib import admin, messages
+from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Case, CharField, OuterRef, Q, Subquery, Value, When
 from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
@@ -441,4 +443,69 @@ def export_xlsx(request):
 
 def favicon_redirect(request):
     """Редирект /favicon.ico → статика с фавиконом."""
-    return HttpResponseRedirect(reverse("static", args=["inventory/favicon.ico"]))
+    from django.templatetags.static import static as static_url
+    return HttpResponseRedirect(static_url("inventory/favicon.ico"))
+
+
+@user_passes_test(lambda u: u.is_authenticated and u.is_active and u.is_superuser)
+def backup_trigger_view(request):
+    """
+    Страница «Сделать дамп БД».
+    GET  — показывает кнопку и последние 30 строк лога.
+    POST — запускает systemctl start netdash-backup.service.
+    """
+    is_linux = sys.platform.startswith("linux")
+
+    if request.method == "POST":
+        if not is_linux:
+            messages.error(request, "Запуск бэкапа доступен только на Linux-сервере.")
+            return redirect("admin_backup")
+
+        try:
+            result = subprocess.run(
+                ["sudo", "-n", "/usr/bin/systemctl", "start", "netdash-backup.service"],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            if result.returncode == 0:
+                messages.success(request, "Бэкап запущен и успешно завершён.")
+            else:
+                err = (result.stderr or result.stdout or "неизвестная ошибка").strip()
+                messages.error(request, f"Ошибка запуска бэкапа: {err}")
+        except subprocess.TimeoutExpired:
+            messages.warning(
+                request,
+                "Бэкап запущен, но не завершился за 90 секунд. "
+                "Проверьте статус на сервере: systemctl status netdash-backup.service",
+            )
+        except FileNotFoundError:
+            messages.error(request, "Команда sudo/systemctl не найдена.")
+        except Exception as exc:
+            messages.error(request, f"Ошибка: {exc}")
+
+        return redirect("admin_backup")
+
+    # ---------- GET: показать лог ----------
+    log_output = ""
+    if is_linux:
+        try:
+            log_result = subprocess.run(
+                ["sudo", "-n", "/usr/local/bin/netdash-backup-log.sh"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            log_output = (log_result.stdout or log_result.stderr or "").strip()
+        except Exception as exc:
+            log_output = f"Не удалось получить лог: {exc}"
+    else:
+        log_output = "Лог доступен только на Linux-сервере."
+
+    context = {
+        **admin.site.each_context(request),
+        "title": "Сделать дамп БД",
+        "log_output": log_output,
+        "backup_available": is_linux,
+    }
+    return render(request, "admin/backup_trigger.html", context)
