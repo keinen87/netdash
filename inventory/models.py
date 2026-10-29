@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from encrypted_model_fields.fields import EncryptedCharField
 
 
 class Software(models.Model):
@@ -53,6 +52,7 @@ class Host(models.Model):
     KIND_HMI = "hmi"
     KIND_ROUTER = "router"
     KIND_MODEM = "modem"
+    KIND_GATEWAY = "gateway"
     KIND_SWITCH = "switch"
     KIND_SERVER = "server"
     KIND_PRINTER = "printer"
@@ -74,6 +74,7 @@ class Host(models.Model):
         (KIND_HMI, "HMI-панель"),
         (KIND_ROUTER, "Wi-Fi роутер"),
         (KIND_MODEM, "Модем"),
+        (KIND_GATEWAY, "Шлюз"),
         (KIND_SWITCH, "Коммутатор"),
         (KIND_SERVER, "Сервер"),
         (KIND_PRINTER, "Принтер/плоттер/МФУ"),
@@ -92,6 +93,7 @@ class Host(models.Model):
         KIND_HMI,
         KIND_ROUTER,
         KIND_MODEM,
+        KIND_GATEWAY,
         KIND_PRINTER,
         KIND_VCC_ENDPOINT,
         KIND_IP_PHONE,
@@ -100,6 +102,7 @@ class Host(models.Model):
     }
     SSID_KINDS = {KIND_BRIDGE, KIND_ROUTER}
     SERIAL_KINDS = {KIND_NVR}
+    CONFIG_KINDS = {KIND_GATEWAY}
 
     description = models.CharField("Описание", max_length=255, blank=True)
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
@@ -108,6 +111,19 @@ class Host(models.Model):
     ssid = models.CharField("SSID", max_length=64, blank=True)
     serial_number = models.CharField("Серийный номер", max_length=64, blank=True)
     comment = models.TextField("Комментарий", blank=True)
+
+    config_file = models.FileField(
+        "Конфигурация",
+        upload_to="host_configs/%Y/%m/",
+        blank=True,
+        null=True,
+    )
+    config_uploaded_at = models.DateTimeField(
+        "Дата загрузки конфигурации",
+        null=True,
+        blank=True,
+        editable=False,
+    )
 
     users = models.ManyToManyField(
         Person,
@@ -126,6 +142,20 @@ class Host(models.Model):
         verbose_name = "Хост"
         verbose_name_plural = "Хосты"
         ordering = ["domain_name"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_config_name = (
+            self.config_file.name if self.config_file else None
+        )
+
+    def save(self, *args, **kwargs):
+        # Обновляем дату загрузки только при реальной смене файла
+        new_name = self.config_file.name if self.config_file else None
+        if new_name and new_name != self._original_config_name:
+            self.config_uploaded_at = timezone.now()
+            self._original_config_name = new_name
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.domain_name or f"Хост #{self.pk}"
@@ -153,8 +183,11 @@ class Host(models.Model):
     def supports_serial(self):
         return self.kind in self.SERIAL_KINDS
 
+    @property
+    def supports_config(self):
+        return self.kind in self.CONFIG_KINDS
+
     def _desktop_share_data(self):
-        """Возвращает (domain_name, login) или (None, None), если путь невозможен."""
         if self.kind not in self.DESKTOP_ACCESS_KINDS:
             return None, None
         if not self.domain_name:
@@ -299,7 +332,7 @@ class Account(models.Model):
 
     kind = models.CharField("Вид", max_length=20, choices=KIND_CHOICES, default=KIND_OTHER)
     login = models.CharField("Логин", max_length=255)
-    password = EncryptedCharField("Пароль", max_length=255, blank=True)
+    password = models.CharField("Пароль", max_length=255, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
     person = models.ForeignKey(

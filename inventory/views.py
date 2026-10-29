@@ -2,6 +2,7 @@ import ipaddress
 import platform
 import subprocess
 import sys
+import os
 
 from ipaddress import IPv4Address
 
@@ -11,7 +12,7 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.contrib import admin, messages
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Case, CharField, OuterRef, Q, Subquery, Value, When
-from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -509,3 +510,26 @@ def backup_trigger_view(request):
         "backup_available": is_linux,
     }
     return render(request, "admin/backup_trigger.html", context)
+
+
+def host_config_download(request, pk):
+    """
+    Скачивание файла конфигурации хоста.
+    Доступ — только администраторам. Файл отдаётся как attachment,
+    чтобы браузер не пытался открыть его inline.
+    """
+    if not (request.user.is_authenticated and request.user.is_staff):
+        raise PermissionDenied("Скачивание конфигурации доступно только администратору.")
+
+    host = get_object_or_404(Host, pk=pk)
+
+    if not host.supports_config or not host.config_file:
+        raise Http404("Конфигурация не найдена.")
+
+    try:
+        f = host.config_file.open("rb")
+    except FileNotFoundError:
+        raise Http404("Файл конфигурации отсутствует на диске.")
+
+    filename = os.path.basename(host.config_file.name)
+    return FileResponse(f, as_attachment=True, filename=filename)    

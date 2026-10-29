@@ -1,10 +1,11 @@
 (function () {
     "use strict";
 
-    // Соответствие: ID поля → список видов хостов, при которых поле активно
+    // Поле в админке → виды хостов, при которых поле активно
     var FIELD_KINDS = {
         "id_ssid": ["bridge", "router"],
-        "id_serial_number": ["nvr"]
+        "id_serial_number": ["nvr"],
+        "id_config_file": ["gateway"]
     };
 
     function updateFieldVisibility(inputId, kinds) {
@@ -16,7 +17,6 @@
         if (!row) return;
 
         var active = kinds.indexOf(kindSelect.value) !== -1;
-        // Скрываем визуально, но не отключаем — значение сохраняется при смене типа
         row.style.display = active ? "" : "none";
     }
 

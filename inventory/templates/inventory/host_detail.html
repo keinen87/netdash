@@ -288,6 +288,33 @@
     }
     .webui-btn:hover { background: #66339a; }
     .webui-btn:active { background: #52287b; }
+
+    /* ---------- Ссылка «Скачать конфигурацию» ---------- */
+    .config-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        font-size: 14px;
+        border: 1px solid #1e7a37;
+        background: #f0faf3;
+        color: #1e7a37;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.15s;
+        margin-top: 4px;
+    }
+    .config-link:hover { background: #e0f2e6; }
+    .config-link::before {
+        content: "⬇";
+        font-size: 12px;
+    }
+    .config-meta {
+        color: #888;
+        font-size: 13px;
+        margin-top: 4px;
+        display: block;
+    }
 {% endblock %}
 
 {% block content %}
@@ -510,6 +537,26 @@
                                         data-copy="{{ host.serial_number }}"
                                         title="Скопировать серийный номер"
                                         aria-label="Скопировать серийный номер"></button>
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+
+                    {% if host.supports_config %}
+                        <dt>Конфигурация</dt>
+                        <dd>
+                            {% if host.config_file %}
+                                <a
+                                    class="config-link"
+                                    href="{% url 'inventory:host_config_download' host.pk %}"
+                                    title="Скачать файл конфигурации"
+                                >Скачать конфигурацию</a>
+                                {% if host.config_uploaded_at %}
+                                    <span class="config-meta">
+                                        Загружено: {{ host.config_uploaded_at|date:"d.m.Y H:i" }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                —
                             {% endif %}
                         </dd>
                     {% endif %}

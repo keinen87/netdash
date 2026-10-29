@@ -8,6 +8,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("host/<int:pk>/", views.host_detail, name="host_detail"),
     path("host/<int:pk>/ping/", views.host_ping, name="host_ping"),
+    path("host/<int:pk>/config/", views.host_config_download, name="host_config_download"),
     path("directory/", views.ldap_search_view, name="ldap_search"),
     path("export/", views.export_page, name="export_page"),
     path("export/xlsx/", views.export_xlsx, name="export_xlsx"),
