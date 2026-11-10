@@ -92,6 +92,10 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = (
     os.environ.get("SESSION_EXPIRE_AT_BROWSER_CLOSE", "False").lower()
     in ("1", "true", "yes")
 )
+SESSION_SAVE_EVERY_REQUEST = (
+    os.environ.get("SESSION_SAVE_EVERY_REQUEST", "False").lower()
+    in ("1", "true", "yes")
+)
 
 ROOT_URLCONF = 'netdash.urls'
 
