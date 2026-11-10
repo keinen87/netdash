@@ -89,7 +89,7 @@
         border-color: #2d6cdf;
     }
 
-    /* Пилюля «С SIM-картой» — зелёный акцент */
+    /* Пилюля «С SIM-картой» */
     .sim-chip input:checked + span {
         background: #1e7a37;
         color: white;
@@ -101,7 +101,7 @@
         color: #1e7a37;
     }
 
-    /* Пилюли для сетей — фиолетовые */
+    /* Пилюли для сетей */
     .subnet-filters .kind-chip:hover span {
         background: #f3e8ff;
         border-color: #d4b8ea;
@@ -114,6 +114,44 @@
     }
     .subnet-chip span {
         font-family: monospace;
+    }
+
+    /* Выпадающий список «Доступ в интернет» */
+    .access-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+    }
+    .access-row label {
+        color: #777;
+        min-width: 110px;
+    }
+    .access-row select {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid #d0d7e2;
+        border-radius: 6px;
+        background: #f7f9fc;
+        color: #333;
+        min-width: 220px;
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .access-row select:hover {
+        background: #eaf1ff;
+        border-color: #b9cdf5;
+    }
+    .access-row select:focus {
+        outline: none;
+        border-color: #2d6cdf;
+        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
+    }
+    .access-row select.active {
+        background: #2d6cdf;
+        color: white;
+        border-color: #2d6cdf;
+        font-weight: 600;
     }
 
     /* ---------- Строки в ячейках ---------- */
@@ -287,7 +325,7 @@
                 autofocus
             >
             <button type="submit">Найти</button>
-            {% if query or kinds_selected or subnets_selected or has_sim %}
+            {% if query or kinds_selected or subnets_selected or has_sim or access_selected %}
                 <a class="clear" href="{% url 'inventory:dashboard' %}">Сбросить</a>
             {% endif %}
         </div>
@@ -333,6 +371,23 @@
                 {% endfor %}
             </div>
         {% endif %}
+
+        <div class="access-row">
+            <label for="access-filter">Доступ в интернет:</label>
+            <select
+                name="access"
+                id="access-filter"
+                class="{% if access_selected %}active{% endif %}"
+                onchange="this.form.submit()"
+            >
+                <option value="" {% if not access_selected %}selected{% endif %}>Все</option>
+                {% for value, label in access_choices %}
+                    <option value="{{ value }}" {% if value == access_selected %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
     </form>
     <div class="export-row">
         <a
@@ -340,7 +395,7 @@
             class="export-btn"
         >📥 Экспорт в Excel</a>
     </div>
-    {% if query or kinds_selected or subnets_selected or has_sim %}
+    {% if query or kinds_selected or subnets_selected or has_sim or access_selected %}
         <p class="filter-summary">
             {% if query %}
                 Результаты поиска по запросу <strong>«{{ query }}»</strong>
@@ -353,8 +408,12 @@
                 {% if query or kinds_selected %} · {% endif %}
                 Только с SIM-картой
             {% endif %}
-            {% if subnets_selected %}
+            {% if access_selected %}
                 {% if query or kinds_selected or has_sim %} · {% endif %}
+                Доступ в интернет: <strong>{{ access_label }}</strong>
+            {% endif %}
+            {% if subnets_selected %}
+                {% if query or kinds_selected or has_sim or access_selected %} · {% endif %}
                 Выбрано сетей: <strong>{{ subnets_selected|length }}</strong>
             {% endif %}
         </p>

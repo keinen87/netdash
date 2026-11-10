@@ -114,6 +114,7 @@
         {% for k in kinds_selected %}<input type="hidden" name="kind" value="{{ k }}">{% endfor %}
         {% for s in subnets_selected %}<input type="hidden" name="subnet" value="{{ s }}">{% endfor %}
         {% if has_sim %}<input type="hidden" name="has_sim" value="1">{% endif %}
+        {% if access_selected %}<input type="hidden" name="access" value="{{ access_selected }}">{% endif %}
 
         {% for group_title, keys in field_groups %}
             <fieldset>

@@ -87,6 +87,19 @@ class Host(models.Model):
         (KIND_OTHER, "Другое"),
     ]
 
+    # --- Доступ в интернет ---
+    ACCESS_NONE = "none"
+    ACCESS_NAT_SELECTIVE = "nat_selective"
+    ACCESS_PROXY = "proxy"
+    ACCESS_OTHER = "other"
+
+    ACCESS_CHOICES = [
+        (ACCESS_NONE, "Нет"),
+        (ACCESS_NAT_SELECTIVE, "NAT выборочно"),
+        (ACCESS_PROXY, "Прокси-сервер"),
+        (ACCESS_OTHER, "Другое"),
+    ]
+
     TEAMVIEWER_KINDS = {KIND_PC, KIND_VPC, KIND_MINIPC, KIND_LAPTOP, KIND_SERVER}
     DESKTOP_ACCESS_KINDS = {KIND_PC, KIND_VPC}
     WEB_UI_KINDS = {
@@ -112,6 +125,14 @@ class Host(models.Model):
     mac_address = models.CharField("MAC-адрес", max_length=17, blank=True)
     ssid = models.CharField("SSID", max_length=64, blank=True)
     serial_number = models.CharField("Серийный номер", max_length=64, blank=True)
+
+    access_type = models.CharField(
+        "Доступ в интернет",
+        max_length=20,
+        choices=ACCESS_CHOICES,
+        default=ACCESS_NONE,
+    )
+
     comment = models.TextField("Комментарий", blank=True)
 
     config_file = models.FileField(

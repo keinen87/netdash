@@ -33,6 +33,7 @@ EXPORT_FIELDS = [
         lambda h: "\n".join(ip.address for ip in h.ip_addresses.all()),
     ),
     ("mac_address", "MAC-адрес", lambda h: h.mac_address),
+    ("access_type", "Доступ в интернет", lambda h: h.get_access_type_display()),
     ("ssid", "SSID", lambda h: h.ssid if h.supports_ssid else ""),
 
     # --- Пользователи ---
@@ -84,7 +85,7 @@ EXPORT_FIELDS_BY_KEY = {
 # порядок ключей внутри группы = порядок чекбоксов в этой группе.
 FIELD_GROUPS = [
     ("Идентификация", ["kind", "description", "domain_name"]),
-    ("Сеть", ["primary_ip", "all_ips", "mac_address", "ssid"]),
+    ("Сеть", ["primary_ip", "all_ips", "mac_address", "access_type", "ssid"]),
     ("Пользователи", ["users", "phones"]),
     ("Оборудование", ["serial_number", "hardware", "softwares"]),
     ("SIM", ["sims"]),

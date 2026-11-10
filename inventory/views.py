@@ -97,6 +97,7 @@ def dashboard(request):
     page_number = request.GET.get("page", "1").strip()
     kinds_selected = request.GET.getlist("kind")
     subnets_selected = request.GET.getlist("subnet")
+    access_selected = request.GET.get("access", "").strip()
     has_sim = request.GET.get("has_sim") == "1"
 
     hosts = Host.objects.all().prefetch_related("users", "softwares", "ip_addresses")
@@ -218,6 +219,9 @@ def dashboard(request):
     sort_suffix = sort_params.urlencode()
     if sort_suffix:
         sort_suffix += "&"
+    
+    access_dict = dict(Host.ACCESS_CHOICES)
+    access_label = access_dict.get(access_selected, "") if access_selected else ""
 
     context = {
         "query": query,
@@ -239,6 +243,9 @@ def dashboard(request):
         "sims": sims,
         "history": history,
         "softwares": softwares,
+        "access_selected": access_selected,
+        "access_label": access_label,
+        "access_choices": Host.ACCESS_CHOICES,        
     }
     return render(request, "inventory/dashboard.html", context)
 
@@ -384,6 +391,7 @@ def export_page(request):
         "kinds_selected": request.GET.getlist("kind"),
         "subnets_selected": request.GET.getlist("subnet"),
         "has_sim": request.GET.get("has_sim") == "1",
+        "access_selected": request.GET.get("access", "").strip(),
     })
 
 

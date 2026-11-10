@@ -7,6 +7,8 @@ from ipaddress import ip_network
 from django.db.models import F, Q, Value
 from django.db.models.functions import Replace, Upper
 
+from .models import Host
+
 
 # Все символы, кроме hex (0-9, A-F)
 _NON_HEX = re.compile(r"[^0-9A-Fa-f]")
@@ -40,6 +42,7 @@ def apply_host_filters(request, hosts):
       - kind     — выбранные типы (OR между значениями)
       - subnet   — выбранные подсети /24 (OR между значениями)
       - has_sim  — только хосты с привязанной SIM-картой
+      - access   — тип доступа в интернет (один из ACCESS_CHOICES)
 
     Возвращает отфильтрованный queryset.
     """
@@ -47,6 +50,7 @@ def apply_host_filters(request, hosts):
     kinds = request.GET.getlist("kind")
     subnets = request.GET.getlist("subnet")
     has_sim = request.GET.get("has_sim") == "1"
+    access = request.GET.get("access", "").strip()
 
     if kinds:
         hosts = hosts.filter(kind__in=kinds)
@@ -68,6 +72,13 @@ def apply_host_filters(request, hosts):
     if has_sim:
         hosts = hosts.filter(sims__isnull=False).distinct()
 
+    # Фильтр по типу доступа в интернет — валидируем значение по ACCESS_CHOICES,
+    # чтобы мусор из GET-параметров не проходил в SQL.
+    if access:
+        valid_access = {code for code, _label in Host.ACCESS_CHOICES}
+        if access in valid_access:
+            hosts = hosts.filter(access_type=access)
+
     if query:
         q = (
             Q(description__icontains=query)
@@ -76,6 +87,7 @@ def apply_host_filters(request, hosts):
             | Q(mac_address__icontains=query)
             | Q(ssid__icontains=query)
             | Q(serial_number__icontains=query)
+            | Q(access_type__icontains=query)
             | Q(comment__icontains=query)
             | Q(ip_addresses__address__icontains=query)
             | Q(ip_addresses__comment__icontains=query)
@@ -109,7 +121,6 @@ def apply_host_filters(request, hosts):
 
         # Поиск по MAC в любом формате
         if looks_like_mac(query):
-            # Нормализуем mac_address в БД: убираем :, -, ., в верхний регистр
             mac_clean = Upper(
                 Replace(
                     Replace(

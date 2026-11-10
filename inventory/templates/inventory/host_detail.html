@@ -504,6 +504,9 @@
                         {% endif %}
                     </dd>
 
+                    <dt>Доступ в интернет</dt>
+                    <dd>{{ host.get_access_type_display }}</dd>
+                    
                     {% if host.supports_ssid %}
                         <dt>SSID</dt>
                         <dd>

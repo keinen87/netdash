@@ -105,17 +105,19 @@ class HostAdmin(admin.ModelAdmin):
     list_display = (
         "domain_name",
         "kind",
+        "access_display",
         "primary_ip",
         "mac_address",
         "users_list",
     )
     list_display_links = ("domain_name",)
-    list_filter = ("kind",)
+    list_filter = ("kind", "access_type")
     search_fields = (
         "description",
         "domain_name",
         "mac_address",
         "ssid",
+        "access_type",
         "ip_addresses__address",
         "hardware__manufacturer",
         "hardware__cpu",
@@ -141,6 +143,10 @@ class HostAdmin(admin.ModelAdmin):
     @admin.display(description="Основной IP")
     def primary_ip(self, obj):
         return obj.primary_ip or "—"
+
+    @admin.display(description="Доступ в интернет")
+    def access_display(self, obj):
+        return obj.get_access_type_display()
 
     @admin.display(description="Пользователи")
     def users_list(self, obj):
