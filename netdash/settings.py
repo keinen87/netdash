@@ -86,8 +86,12 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-SESSION_COOKIE_AGE = 3600
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# ---------- Сессии ----------
+SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", "1209600"))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = (
+    os.environ.get("SESSION_EXPIRE_AT_BROWSER_CLOSE", "False").lower()
+    in ("1", "true", "yes")
+)
 
 ROOT_URLCONF = 'netdash.urls'
 
