@@ -89,12 +89,14 @@ class Host(models.Model):
 
     # --- Доступ в интернет ---
     ACCESS_NONE = "none"
+    ACCESS_NAT_ALL = "nat_all"
     ACCESS_NAT_SELECTIVE = "nat_selective"
     ACCESS_PROXY = "proxy"
     ACCESS_OTHER = "other"
 
     ACCESS_CHOICES = [
         (ACCESS_NONE, "Нет"),
+        (ACCESS_NAT_ALL, "NAT все"),
         (ACCESS_NAT_SELECTIVE, "NAT выборочно"),
         (ACCESS_PROXY, "Прокси-сервер"),
         (ACCESS_OTHER, "Другое"),
