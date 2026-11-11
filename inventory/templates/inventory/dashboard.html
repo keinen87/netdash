@@ -312,6 +312,108 @@
         transition: background 0.15s;
     }
     .export-btn:hover { background: #e0f2e6; }
+    /* ---------- Напоминания ---------- */
+    .reminders-card {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .reminders-card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 16px;
+        font-weight: 600;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+        padding: 0;
+    }
+
+    .reminder-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .reminder-item:last-child { border-bottom: none; }
+    .reminder-item.overdue { background: linear-gradient(90deg, #fff5f5 0%, transparent 30%); }
+
+    .reminder-main {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex: 1 1 400px;
+        flex-wrap: wrap;
+    }
+    .reminder-main strong {
+        font-size: 15px;
+        color: #222;
+    }
+    .reminder-due {
+        color: #888;
+        font-size: 13px;
+        font-family: monospace;
+    }
+
+    .reminder-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        background: #fbe1e0;
+        color: #b0322e;
+    }
+    .reminder-badge.soon {
+        background: #fff4d6;
+        color: #8a6d1a;
+    }
+
+    .reminder-links {
+        display: flex;
+        gap: 12px;
+        font-size: 14px;
+        color: #555;
+        flex: 1 1 200px;
+    }
+    .reminder-links a {
+        color: #2d6cdf;
+        text-decoration: none;
+    }
+    .reminder-links a:hover { text-decoration: underline; }
+
+    .reminder-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .inline-form { display: inline; margin: 0; padding: 0; }
+    .btn-done, .btn-snooze {
+        padding: 4px 10px;
+        font-size: 13px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s;
+    }
+    .btn-done {
+        background: #e8f5ec;
+        border: 1px solid #7bc893;
+        color: #155c28;
+    }
+    .btn-done:hover { background: #d4f4dd; }
+    .btn-snooze {
+        background: #f7f9fc;
+        border: 1px solid #d0d7e2;
+        color: #2d6cdf;
+    }
+    .btn-snooze:hover { background: #eaf1ff; }    
 {% endblock %}
 
 {% block content %}
@@ -417,6 +519,80 @@
                 Выбрано сетей: <strong>{{ subnets_selected|length }}</strong>
             {% endif %}
         </p>
+    {% endif %}
+    {# ---------- НАПОМИНАНИЯ ---------- #}
+    {% if overdue_reminders or soon_reminders %}
+        <div class="reminders-card">
+            <h2>Напоминания</h2>
+
+            {% for r in overdue_reminders %}
+                <div class="reminder-item overdue">
+                    <div class="reminder-main">
+                        <span class="reminder-badge">ПРОСРОЧЕНО</span>
+                        <strong>{{ r.title }}</strong>
+                        <span class="reminder-due">{{ r.due_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="reminder-links">
+                        {% if r.host %}
+                            <a href="{% url 'inventory:host_detail' r.host.id %}">{{ r.host }}</a>
+                        {% endif %}
+                        {% if r.person %}
+                            <span>{{ r.person.full_name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="reminder-actions">
+                        <form method="post" action="{% url 'inventory:reminder_done' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-done">✓ Готово</button>
+                        </form>
+                        <form method="post" action="{% url 'inventory:reminder_snooze' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="days" value="1">
+                            <button type="submit" class="btn-snooze">+1 день</button>
+                        </form>
+                        <form method="post" action="{% url 'inventory:reminder_snooze' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="days" value="7">
+                            <button type="submit" class="btn-snooze">+1 неделя</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+
+            {% for r in soon_reminders %}
+                <div class="reminder-item soon">
+                    <div class="reminder-main">
+                        <span class="reminder-badge soon">СКОРО</span>
+                        <strong>{{ r.title }}</strong>
+                        <span class="reminder-due">{{ r.due_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="reminder-links">
+                        {% if r.host %}
+                            <a href="{% url 'inventory:host_detail' r.host.id %}">{{ r.host }}</a>
+                        {% endif %}
+                        {% if r.person %}
+                            <span>{{ r.person.full_name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="reminder-actions">
+                        <form method="post" action="{% url 'inventory:reminder_done' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-done">✓ Готово</button>
+                        </form>
+                        <form method="post" action="{% url 'inventory:reminder_snooze' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="days" value="1">
+                            <button type="submit" class="btn-snooze">+1 день</button>
+                        </form>
+                        <form method="post" action="{% url 'inventory:reminder_snooze' r.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="days" value="7">
+                            <button type="submit" class="btn-snooze">+1 неделя</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
 
     {# ---------- ХОСТЫ ---------- #}

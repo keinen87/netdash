@@ -128,7 +128,44 @@
             padding: 1px 6px;
             font-size: 13px;
         }
-
+        /* ---------- Всплывающие сообщения ---------- */
+        .messages {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+        .message {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 15px;
+            border-left: 4px solid;
+            animation: message-in 0.25s ease;
+        }
+        @keyframes message-in {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .message.success {
+            background: #e8f5ec;
+            color: #155c28;
+            border-color: #2eb85c;
+        }
+        .message.error {
+            background: #fbe1e0;
+            color: #b0322e;
+            border-color: #d9534f;
+        }
+        .message.warning {
+            background: #fff4d6;
+            color: #8a6d1a;
+            border-color: #e2a92e;
+        }
+        .message.info {
+            background: #e8f0fe;
+            color: #2d6cdf;
+            border-color: #2d6cdf;
+        }
         {% block extra_css %}{% endblock %}
     </style>
 </head>
@@ -148,6 +185,14 @@
             {% endif %}
         </div>
     </div>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}   
 
     {% block content %}{% endblock %}
 </body>

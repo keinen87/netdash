@@ -10,6 +10,7 @@ from .models import (
     Host,
     IPAddress,
     Person,
+    Reminder,
     SIM,
     Software,
 )
@@ -304,3 +305,49 @@ class HistoryAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         if obj.person and obj.host:
             obj.host.users.add(obj.person)
+
+
+@admin.register(Reminder)
+class ReminderAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "due_at",
+        "state_display",
+        "host",
+        "person",
+    )
+    list_display_links = ("title",)
+    list_filter = ("is_done", "host", "person")
+    search_fields = ("title", "description", "host__domain_name", "person__full_name")
+    date_hierarchy = "due_at"
+    list_select_related = ("host", "person")
+    fields = (
+        "title",
+        "description",
+        "due_at",
+        "is_done",
+        "host",
+        "person",
+        "account",
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("host", "person")
+
+    def save_model(self, request, obj, form, change):
+        """Автоматически ставим done_at, когда is_done становится True."""
+        if obj.is_done and not obj.done_at:
+            obj.done_at = timezone.now()
+        elif not obj.is_done:
+            # Разгалочили — сбрасываем дату выполнения
+            obj.done_at = None
+        super().save_model(request, obj, form, change)
+
+    @admin.display(description="Состояние")
+    def state_display(self, obj):
+        if obj.is_done:
+            return "✓ Выполнено"
+        if obj.is_overdue:
+            return "⚠ Просрочено"
+        return "Ожидает"

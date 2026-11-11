@@ -444,3 +444,58 @@ class History(models.Model):
     def __str__(self):
         target = self.host or self.person or "—"
         return f"{self.created_at:%Y-%m-%d %H:%M} — {target}"
+
+
+class Reminder(models.Model):
+    """Напоминание о каком-либо действии.
+
+    Может быть привязано к хосту, пользователю, учётной записи — или ни к чему
+    (свободное напоминание, например «позвонить вендору»).
+    """
+
+    title = models.CharField("Что напомнить", max_length=255)
+    description = models.TextField("Подробности", blank=True)
+    due_at = models.DateTimeField("Когда напомнить")
+
+    is_done = models.BooleanField("Выполнено", default=False)
+    done_at = models.DateTimeField("Когда выполнено", null=True, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    host = models.ForeignKey(
+        Host,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reminders",
+        verbose_name="Хост",
+    )
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reminders",
+        verbose_name="Пользователь",
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reminders",
+        verbose_name="Учётная запись",
+    )
+
+    class Meta:
+        verbose_name = "Напоминание"
+        verbose_name_plural = "Напоминания"
+        # Сначала невыполненные, потом по дате (ближайшие первыми)
+        ordering = ["is_done", "due_at"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_overdue(self):
+        """Просрочено ли (срок прошёл, не выполнено)."""
+        return not self.is_done and self.due_at < timezone.now()

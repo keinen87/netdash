@@ -5,6 +5,7 @@ import sys
 import os
 
 from ipaddress import IPv4Address
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -32,6 +33,7 @@ from .models import (
     Host,
     IPAddress,
     Person,
+    Reminder,
     SIM,
     Software,
 )
@@ -223,6 +225,19 @@ def dashboard(request):
     access_dict = dict(Host.ACCESS_CHOICES)
     access_label = access_dict.get(access_selected, "") if access_selected else ""
 
+    # ---------- Напоминания ----------
+    now = timezone.now()
+    overdue_reminders = (
+        Reminder.objects
+        .filter(is_done=False, due_at__lt=now)
+        .select_related("host", "person")
+    )
+    soon_reminders = (
+        Reminder.objects
+        .filter(is_done=False, due_at__gte=now, due_at__lte=now + timedelta(hours=24))
+        .select_related("host", "person")
+    )
+
     context = {
         "query": query,
         "sort": sort,
@@ -245,7 +260,9 @@ def dashboard(request):
         "softwares": softwares,
         "access_selected": access_selected,
         "access_label": access_label,
-        "access_choices": Host.ACCESS_CHOICES,        
+        "access_choices": Host.ACCESS_CHOICES,
+        "overdue_reminders": overdue_reminders,
+        "soon_reminders": soon_reminders,                
     }
     return render(request, "inventory/dashboard.html", context)
 
@@ -540,4 +557,99 @@ def host_config_download(request, pk):
         raise Http404("Файл конфигурации отсутствует на диске.")
 
     filename = os.path.basename(host.config_file.name)
-    return FileResponse(f, as_attachment=True, filename=filename)    
+    return FileResponse(f, as_attachment=True, filename=filename)
+
+
+def _safe_redirect_back(request, fallback="inventory:dashboard"):
+    """
+    Возвращает туда, откуда пришёл пользователь.
+    HTTP_REFERER может отсутствовать — тогда fallback.
+    """
+    referer = request.META.get("HTTP_REFERER")
+    if referer:
+        return redirect(referer)
+    return redirect(fallback)
+
+
+@require_POST
+def reminder_done(request, pk):
+    """Отметить напоминание выполненным."""
+    if not (request.user.is_authenticated and request.user.is_staff):
+        raise PermissionDenied("Отмечать напоминания может только администратор.")
+
+    reminder = get_object_or_404(Reminder, pk=pk)
+    reminder.is_done = True
+    reminder.done_at = timezone.now()
+    reminder.save(update_fields=["is_done", "done_at"])
+
+    messages.success(request, f"Напоминание «{reminder.title}» выполнено.")
+    return _safe_redirect_back(request)
+
+
+@require_POST
+def reminder_snooze(request, pk):
+    """Отложить напоминание на N дней от текущего момента."""
+    if not (request.user.is_authenticated and request.user.is_staff):
+        raise PermissionDenied("Откладывать напоминания может только администратор.")
+
+    reminder = get_object_or_404(Reminder, pk=pk)
+
+    try:
+        days = int(request.POST.get("days", "1"))
+    except (TypeError, ValueError):
+        days = 1
+
+    # Ограничиваем разумными пределами
+    if days < 1:
+        days = 1
+    if days > 3650:
+        days = 3650
+
+    reminder.due_at = timezone.now() + timedelta(days=days)
+    # Если напоминание было отмечено выполненным — возвращаем в «активные»
+    if reminder.is_done:
+        reminder.is_done = False
+        reminder.done_at = None
+    reminder.save(update_fields=["due_at", "is_done", "done_at"])
+
+    messages.success(
+        request,
+        f"Напоминание «{reminder.title}» отложено на {days} дн."
+    )
+    return _safe_redirect_back(request)
+
+
+@require_POST
+def reminder_create_for_host(request, pk):
+    """Создать напоминание, привязанное к хосту, из его карточки."""
+    if not (request.user.is_authenticated and request.user.is_staff):
+        raise PermissionDenied("Создавать напоминания может только администратор.")
+
+    host = get_object_or_404(Host, pk=pk)
+
+    title = request.POST.get("title", "").strip()
+    if not title:
+        messages.error(request, "Нужно указать, что напомнить.")
+        return redirect("inventory:host_detail", pk=host.pk)
+
+    try:
+        days = int(request.POST.get("days", "7"))
+    except (TypeError, ValueError):
+        days = 7
+
+    if days < 1:
+        days = 1
+    if days > 3650:
+        days = 3650
+
+    Reminder.objects.create(
+        title=title,
+        host=host,
+        due_at=timezone.now() + timedelta(days=days),
+    )
+
+    messages.success(
+        request,
+        f"Напоминание создано: «{title}» — через {days} дн."
+    )
+    return redirect("inventory:host_detail", pk=host.pk)        

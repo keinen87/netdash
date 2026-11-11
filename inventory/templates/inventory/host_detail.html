@@ -315,6 +315,93 @@
         margin-top: 4px;
         display: block;
     }
+    /* ---------- Напоминания в карточке хоста ---------- */
+    .host-reminder {
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .host-reminder:last-of-type { border-bottom: 1px solid #f0f0f0; }
+    .host-reminder.overdue {
+        padding: 10px 12px;
+        margin: 0 -12px;
+        background: #fff5f5;
+        border-radius: 6px;
+        border-bottom: none;
+    }
+    .host-reminder-title strong {
+        font-size: 14px;
+        color: #222;
+        word-wrap: break-word;
+    }
+    .host-reminder-due {
+        color: #888;
+        font-size: 13px;
+        font-family: monospace;
+        margin-top: 4px;
+    }
+    .overdue-text {
+        color: #b0322e;
+        font-weight: 600;
+    }
+    .host-reminder-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+    }
+    .host-reminder-actions .btn-done,
+    .host-reminder-actions .btn-snooze {
+        padding: 3px 8px;
+        font-size: 12px;
+    }
+
+    form.add-reminder-form {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px dashed #e0e0e0;
+    }
+    form.add-reminder-form input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 14px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+    form.add-reminder-form input[type="text"]:focus {
+        outline: none;
+        border-color: #2d6cdf;
+        box-shadow: 0 0 0 3px rgba(45, 108, 223, 0.15);
+    }
+    .add-reminder-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        font-size: 14px;
+        color: #555;
+    }
+    .add-reminder-row input[type="number"] {
+        width: 70px;
+        padding: 6px 8px;
+        font-size: 14px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        font-family: inherit;
+    }
+    .add-reminder-row button {
+        margin-left: auto;
+        padding: 6px 14px;
+        font-size: 13px;
+        border: none;
+        border-radius: 6px;
+        background: #2d6cdf;
+        color: white;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s;
+    }
+    .add-reminder-row button:hover { background: #1e52b5; }    
 {% endblock %}
 
 {% block content %}
@@ -380,7 +467,58 @@
                 </div>
                 {% endif %}
             {% endif %}
+            {# ---------- НАПОМИНАНИЯ ---------- #}
+            {% if can_edit %}
+            <div class="card">
+                <h2>Напоминания <span class="count">({{ host.reminders.all|length }})</span></h2>
 
+                {% for r in host.reminders.all %}
+                    {% if not r.is_done %}
+                        <div class="host-reminder {% if r.is_overdue %}overdue{% endif %}">
+                            <div class="host-reminder-title">
+                                <strong>{{ r.title }}</strong>
+                            </div>
+                            <div class="host-reminder-due">
+                                {% if r.is_overdue %}
+                                    <span class="overdue-text">⚠ просрочено</span>
+                                {% endif %}
+                                {{ r.due_at|date:"d.m.Y H:i" }}
+                            </div>
+                            <div class="host-reminder-actions">
+                                <form method="post" action="{% url 'inventory:reminder_done' r.id %}" class="inline-form">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-done">✓ Готово</button>
+                                </form>
+                                <form method="post" action="{% url 'inventory:reminder_snooze' r.id %}" class="inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="days" value="7">
+                                    <button type="submit" class="btn-snooze">+1 неделя</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="empty">Напоминаний нет.</p>
+                {% endfor %}
+
+                <form method="post" action="{% url 'inventory:reminder_create_for_host' host.pk %}" class="add-reminder-form">
+                    {% csrf_token %}
+                    <input
+                        type="text"
+                        name="title"
+                        placeholder="Что напомнить..."
+                        required
+                        maxlength="255"
+                    >
+                    <div class="add-reminder-row">
+                        <label>Через</label>
+                        <input type="number" name="days" value="7" min="1" max="3650">
+                        <label>дн.</label>
+                        <button type="submit">Напомнить</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
         </aside>
 
         {# ================= ЦЕНТРАЛЬНАЯ КОЛОНКА ================= #}
